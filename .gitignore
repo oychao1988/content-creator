@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+*.log
+dist/
+.env
+.env.local
+
+# 临时分析文档
+docs/DOCUMENTATION-ANALYSIS.md
+docs/SOURCE-CODE-ANALYSIS.md
+docs/archive/

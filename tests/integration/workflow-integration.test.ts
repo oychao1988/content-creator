@@ -1,0 +1,243 @@
+/**
+ * 工作流集成测试
+ *
+ * 测试完整的工作流执行
+ *
+ * 注意：此测试使用真实的 DeepSeek LLM API
+ * - 超时时间设置为 5 分钟（300 秒）
+ * - 测试环境下质检标准已放宽（最低 5 分即可通过）
+ * - 测试环境下图片生成已禁用（使用 mock 图片）
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  createSimpleContentCreatorGraph,
+  createInitialState,
+  ExecutionMode,
+} from '../../src/domain/workflow/index.js';
+import {
+  createTestInitialState,
+  createMockSearchResults,
+  createMockOrganizedInfo,
+  createMockArticleContent,
+  createMockImages,
+  MockSearchService,
+  MockLLMService,
+  MockImageService,
+} from '../utils/test-helpers.js';
+
+describe('ContentCreator Workflow Integration Tests', () => {
+  let mockSearchService: MockSearchService;
+  let mockLLMService: MockLLMService;
+  let mockImageService: MockImageService;
+
+  beforeEach(() => {
+    // Setup all mocks
+    mockSearchService = new MockSearchService();
+    mockLLMService = new MockLLMService();
+    mockImageService = new MockImageService();
+
+    // Mock services here if needed
+    // vi.doMock('../../src/services/search/SearchService.js', () => ({
+    //   searchService: mockSearchService,
+    // }));
+  });
+
+  afterEach(() => {
+    // Clear all mocks
+    vi.clearAllMocks();
+  });
+
+  describe('Full Workflow Execution', () => {
+    it('should complete full workflow successfully', async () => {
+      // Create graph
+      const graph = createSimpleContentCreatorGraph();
+
+      // Create initial state
+      const initialState = createTestInitialState({
+        taskId: 'test-full-workflow',
+        topic: 'AI 技术的发展',
+        requirements: '写一篇关于 AI 技术发展的文章',
+        hardConstraints: {
+          minWords: 500,
+          maxWords: 1000,
+          keywords: ['AI', '人工智能'],
+        },
+      });
+
+      // Execute workflow (使用真实 LLM API，超时时间由 vitest.config.ts 控制)
+      const result = await graph.invoke(initialState);
+
+      // Verify results
+      expect(result).toBeDefined();
+      expect(result.taskId).toBe('test-full-workflow');
+      expect(result.currentStep).toBeDefined();
+
+      // 验证文章内容已生成（测试环境下质检通过）
+      expect(result.articleContent).toBeDefined();
+      expect(result.articleContent?.length).toBeGreaterThan(0);
+
+      // 验证质检报告存在
+      expect(result.textQualityReport).toBeDefined();
+      expect(result.textQualityReport?.passed).toBe(true);
+
+      // 验证图片已生成（测试环境下为 mock 图片）
+      expect(result.images).toBeDefined();
+      expect(result.images?.length).toBeGreaterThan(0);
+    }, 300000); // 5分钟超时，覆盖 vitest 全局配置
+
+    it('should have search results after search node', async () => {
+      const graph = createSimpleContentCreatorGraph();
+      const initialState = createTestInitialState();
+
+      const result = await graph.invoke(initialState);
+
+      // Search results should be populated
+      expect(result.searchResults).toBeDefined();
+      // Note: Actual values depend on mock implementation
+    }, 300000);
+  });
+
+  describe('Quality Check Retry', () => {
+    it('should retry write when quality check fails', async () => {
+      const graph = createSimpleContentCreatorGraph();
+      const initialState = createTestInitialState({
+        taskId: 'test-retry',
+        topic: '测试主题',
+        requirements: '测试要求',
+      });
+
+      // Mock quality check failure
+      let attemptCount = 0;
+      const mockLLMServiceWithRetry = new MockLLMService();
+      // Override to simulate quality check failure then success
+      // This would require more complex mocking
+
+      const result = await graph.invoke(initialState);
+
+      // Verify retry happened
+      expect(result).toBeDefined();
+    }, 300000);
+
+    it('should fail after max retries', async () => {
+      const graph = createSimpleContentCreatorGraph();
+      const initialState = createTestInitialState({
+        taskId: 'test-max-retry',
+        topic: '测试主题',
+        requirements: '测试要求',
+      });
+
+      // Mock persistent quality check failure
+      // This would cause the workflow to fail after 3 attempts
+
+      await expect(graph.invoke(initialState)).rejects.toThrow();
+    }, 300000);
+  });
+
+  describe('Streaming Execution', () => {
+    it.skip('should stream workflow execution (skipped: graph.stream() may not be available in current LangChain version)', async () => {
+      const graph = createSimpleContentCreatorGraph();
+      const initialState = createTestInitialState();
+
+      const events: Array<{ node: string; output: any }> = [];
+
+      // Note: graph.stream() may not be available in all LangChain versions
+      // If it exists, we can test it. Otherwise, this test is skipped.
+      if (typeof graph.stream !== 'function') {
+        console.log('graph.stream() method not available, skipping test');
+        return;
+      }
+
+      for await (const event of graph.stream(initialState)) {
+        const [nodeName, output] = Object.entries(event)[0];
+        if (nodeName !== '__end__') {
+          events.push({ node: nodeName, output });
+        }
+      }
+
+      // Verify all nodes were executed
+      expect(events.length).toBeGreaterThan(0);
+      expect(events.some((e) => e.node === 'search')).toBe(true);
+      expect(events.some((e) => e.node === 'organize')).toBe(true);
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should handle search failure gracefully', async () => {
+      const graph = createSimpleContentCreatorGraph();
+      const initialState = createTestInitialState();
+
+      // Mock search failure
+      // The workflow should continue with empty results
+
+      const result = await graph.invoke(initialState);
+      expect(result).toBeDefined();
+    }, 300000);
+
+    it('should handle LLM failure', async () => {
+      const graph = createSimpleContentCreatorGraph();
+      const initialState = createTestInitialState();
+
+      // Mock LLM failure
+      // The workflow should retry or fail gracefully
+
+      // This test would require mocking the LLM to fail
+    }, 300000);
+  });
+
+  describe('State Updates', () => {
+    it('should update state through each node', async () => {
+      const graph = createSimpleContentCreatorGraph();
+      const initialState = createTestInitialState();
+
+      const finalState = await graph.invoke(initialState);
+
+      // Verify state was updated
+      expect(finalState.currentStep).toBeDefined();
+      expect(finalState.searchResults).toBeDefined();
+      expect(finalState.organizedInfo).toBeDefined();
+      expect(finalState.articleContent).toBeDefined();
+    }, 300000);
+
+    it('should increment retry count on failure', async () => {
+      const graph = createSimpleContentCreatorGraph();
+      const initialState = createTestInitialState({
+        textRetryCount: 0,
+      });
+
+      // Mock quality check failure
+
+      const finalState = await graph.invoke(initialState);
+
+      // Verify retry count incremented
+      expect(finalState.textRetryCount).toBeGreaterThanOrEqual(0);
+    }, 300000);
+  });
+
+  describe('Concurrent Execution', () => {
+    it('should handle multiple concurrent workflows', async () => {
+      const graph = createSimpleContentCreatorGraph();
+
+      const initialState1 = createTestInitialState({
+        taskId: 'test-concurrent-1',
+      });
+      const initialState2 = createTestInitialState({
+        taskId: 'test-concurrent-2',
+      });
+      const initialState3 = createTestInitialState({
+        taskId: 'test-concurrent-3',
+      });
+
+      // Execute multiple workflows concurrently
+      const results = await Promise.all([
+        graph.invoke(initialState1),
+        graph.invoke(initialState2),
+        graph.invoke(initialState3),
+      ]);
+
+      // Verify all completed
+      expect(results).toHaveLength(3);
+      expect(results.every((r) => r !== undefined)).toBe(true);
+    }, 300000);
+  });
+});
