@@ -53,6 +53,7 @@
     "cli": "tsx src/presentation/cli/index.ts",
     "cli:create": "tsx src/presentation/cli/index.ts create",
     "cli:list": "tsx src/presentation/cli/index.ts list",
+    "cli:retry": "tsx src/presentation/cli/index.ts retry",
     "cli:status": "tsx src/presentation/cli/index.ts status",
     "cli:result": "tsx src/presentation/cli/index.ts result",
     "cli:cancel": "tsx src/presentation/cli/index.ts cancel",
