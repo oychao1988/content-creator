@@ -162,6 +162,8 @@ export const listCommand = new Command('list')
         count: tasks.length,
         filters,
       });
+
+      process.exit(0);
     } catch (error) {
       logger.error('Failed to list tasks', error as Error);
       console.error(chalk.red('❌ 查询任务列表失败：'), (error as Error).message);
