@@ -6,6 +6,7 @@
  */
 
 import Database from 'better-sqlite3';
+import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 import type { IQualityCheckRepository, CreateQualityCheckParams, QualityCheckRecord } from '../../domain/repositories/QualityCheckRepository.js';
 
@@ -42,7 +43,7 @@ export class SQLiteQualityCheckRepository implements IQualityCheckRepository {
 
     try {
       stmt.run(
-        `${params.taskId}_${Date.now()}`, // 生成唯一 ID
+        uuidv4(), // 使用 UUID v4 确保唯一性
         params.taskId,
         params.checkType,
         params.score,

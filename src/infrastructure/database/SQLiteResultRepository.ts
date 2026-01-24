@@ -6,6 +6,7 @@
  */
 
 import Database from 'better-sqlite3';
+import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 import type { IResultRepository, CreateResultParams, ResultRecord } from '../../domain/repositories/ResultRepository.js';
 
@@ -38,7 +39,7 @@ export class SQLiteResultRepository implements IResultRepository {
 
     try {
       stmt.run(
-        `${params.taskId}_${params.resultType}_${Date.now()}`, // 使用更可靠的 ID 生成方式
+        uuidv4(), // 使用 UUID v4 确保唯一性
         params.taskId,
         params.resultType,
         params.content || null,
