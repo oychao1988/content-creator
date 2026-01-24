@@ -11,6 +11,7 @@ import { createCommand } from './commands/create.js';
 import { statusCommand } from './commands/status.js';
 import { resultCommand } from './commands/result.js';
 import { cancelCommand } from './commands/cancel.js';
+import { listCommand } from './commands/list.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 
 const logger = createLogger('CLI');
@@ -26,6 +27,7 @@ program
 
 // 添加命令
 program.addCommand(createCommand);
+program.addCommand(listCommand);
 program.addCommand(statusCommand);
 program.addCommand(resultCommand);
 program.addCommand(cancelCommand);
