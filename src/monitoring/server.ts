@@ -6,10 +6,9 @@
 
 import express from 'express';
 import { createBullBoard } from '@bull-board/api';
-import { BullMQAdapter } from '@bull-board/api/bullMQAdapter.js';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
 import { createTaskQueue } from '../infrastructure/queue/TaskQueue.js';
-import { getRedisClient } from '../infrastructure/redis/connection.js';
 import { createLogger } from '../infrastructure/logging/logger.js';
 
 const logger = createLogger('BullBoard');
@@ -27,10 +26,14 @@ export async function createMonitorServer(port: number = 3000): Promise<void> {
 
     // 创建任务队列
     const taskQueue = await createTaskQueue();
+    const queue = taskQueue.getQueue();
+    if (!queue) {
+      throw new Error('Task queue not available');
+    }
 
     // 创建 Bull Board
     createBullBoard({
-      queues: [new BullMQAdapter(taskQueue.getQueue())],
+      queues: [new BullMQAdapter(queue)],
       serverAdapter,
     });
 
@@ -38,7 +41,7 @@ export async function createMonitorServer(port: number = 3000): Promise<void> {
     app.use('/admin/queues', serverAdapter.getRouter());
 
     // 自定义统计 API
-    app.get('/api/stats', async (req, res) => {
+    app.get('/api/stats', async (_req, res) => {
       try {
         const stats = await taskQueue.getStats();
         res.json({
@@ -55,7 +58,7 @@ export async function createMonitorServer(port: number = 3000): Promise<void> {
     });
 
     // 健康检查
-    app.get('/health', (req, res) => {
+    app.get('/health', (_req, res) => {
       res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
@@ -86,7 +89,7 @@ export async function createMonitorServer(port: number = 3000): Promise<void> {
       });
     });
 
-    return { app, server };
+    return;
   } catch (error) {
     logger.error('Failed to start monitor server', error as Error);
     throw error;

@@ -10,7 +10,6 @@ import { createTaskRepository } from '../infrastructure/database/index.js';
 import { createLogger } from '../infrastructure/logging/logger.js';
 import type { Task } from '../domain/entities/Task.js';
 import type { TaskJobData } from '../infrastructure/queue/TaskQueue.js';
-import type { JobsOptions } from 'bullmq';
 
 const logger = createLogger('TaskScheduler');
 
@@ -110,14 +109,20 @@ export class TaskScheduler {
       // 3. 创建任务实体
       const task: Partial<Task> = {
         id: taskId,
-        mode: request.mode,
-        type: 'article',
+        taskId: taskId,
+        mode: request.mode as any,
+        type: 'article' as any,
         topic: request.topic,
         requirements: request.requirements,
         hardConstraints: request.hardConstraints,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        status: 'pending' as any,
+        priority: 2,
+        version: 1,
+        textRetryCount: 0,
+        imageRetryCount: 0,
+        targetAudience: 'general',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
       // 4. 保存到数据库

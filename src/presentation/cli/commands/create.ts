@@ -11,6 +11,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { createSyncExecutor } from '../../../application/workflow/SyncExecutor.js';
 import { MemoryTaskRepository } from '../../../infrastructure/database/MemoryTaskRepository.js';
 import { PostgresTaskRepository } from '../../../infrastructure/database/PostgresTaskRepository.js';
+import { SQLiteTaskRepository } from '../../../infrastructure/database/SQLiteTaskRepository.js';
 import { PostgresResultRepository } from '../../../infrastructure/database/ResultRepository.js';
 import { PostgresQualityCheckRepository } from '../../../infrastructure/database/PostgresQualityCheckRepository.js';
 import { ExecutionMode, TaskPriority } from '../../../domain/entities/Task.js';
@@ -67,7 +68,7 @@ export const createCommand = new Command('create')
 
     // 解析关键词（在两个 try 块之外的共享作用域）
     const keywords = options.keywords
-      ? options.keywords.split(',').map(k => k.trim())
+      ? options.keywords.split(',').map((k: string) => k.trim())
       : undefined;
 
     // ==================== 第二阶段：服务初始化（仅在验证通过后） ====================
@@ -104,6 +105,10 @@ export const createCommand = new Command('create')
         qualityCheckRepo = new PostgresQualityCheckRepository(resources.pool);
 
         console.log('✅ 使用 PostgreSQL 持久化存储');
+      } else if (config.database.type === 'sqlite') {
+        // 使用 SQLite Task Repository，确保任务持久化
+        taskRepo = new SQLiteTaskRepository();
+        console.log('✅ 使用 SQLite 持久化存储');
       } else {
         // 使用内存数据库（仅用于测试）
         taskRepo = new MemoryTaskRepository();
@@ -164,6 +169,14 @@ export const createCommand = new Command('create')
 
       } else {
         // ==================== 同步模式：使用 SyncExecutor ====================
+        // 为 SQLite 模式创建结果和质检仓储
+        if (config.database.type === 'sqlite') {
+          const { SQLiteResultRepository } = await import('../../../infrastructure/database/SQLiteResultRepository.js');
+          const { SQLiteQualityCheckRepository } = await import('../../../infrastructure/database/SQLiteQualityCheckRepository.js');
+          resultRepo = new SQLiteResultRepository();
+          qualityCheckRepo = new SQLiteQualityCheckRepository();
+        }
+
         const executor = createSyncExecutor(taskRepo, {
           databaseType: config.database.type,
           enableLogging: true,
@@ -226,10 +239,12 @@ export const createCommand = new Command('create')
         }
 
         // 显示生成的图片
-        if (result.finalState.imageUrl) {
+        if (result.finalState.images && result.finalState.images.length > 0) {
           console.log(chalk.white.bold('\n🖼️ 生成的配图:'));
           printSeparator();
-          console.log(chalk.cyan(result.finalState.imageUrl));
+          result.finalState.images.forEach((img: any) => {
+            console.log(chalk.cyan(img.url));
+          });
           printSeparator();
         }
 
@@ -242,8 +257,8 @@ export const createCommand = new Command('create')
         if (qr.score !== undefined) {
           console.log(chalk.white(`评分: ${qr.score}/100`));
         }
-        if (qr.reason) {
-          console.log(chalk.gray(`原因: ${qr.reason}`));
+        if (qr.fixSuggestions && qr.fixSuggestions.length > 0) {
+          console.log(chalk.gray(`建议: ${qr.fixSuggestions.join(', ')}`));
         }
         printSeparator();
 

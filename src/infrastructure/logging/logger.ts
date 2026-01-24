@@ -8,11 +8,6 @@ import winston from 'winston';
 import { config } from '../../config/index.js';
 
 /**
- * 日志级别
- */
-export type LogLevel = 'error' | 'warn' | 'info' | 'debug';
-
-/**
  * 日志元数据
  */
 export interface LogMetadata {
@@ -21,36 +16,11 @@ export interface LogMetadata {
   userId?: string;
   taskId?: string;
   workerId?: string;
-  error?: {
+  error?: string | {
     code?: string;
     stack?: string;
     [key: string]: any;
   };
-}
-
-/**
- * 自定义日志格式
- */
-class CustomFormat extends winston.Transport {
-  name = 'custom-format';
-  opts: any;
-
-  constructor(opts?: any) {
-    super(opts);
-    this.opts = opts || {};
-  }
-
-  log(info: any, callback: () => void) {
-    const { level, message, timestamp, ...meta } = info;
-
-    // 格式化输出
-    const output = `[${timestamp}] [${level.toUpperCase()}] ${message}${
-      Object.keys(meta).length ? ' ' + JSON.stringify(meta) : ''
-    }`;
-
-    console.log(output);
-    callback();
-  }
 }
 
 /**
@@ -162,7 +132,7 @@ export class Logger {
   /**
    * 格式化日志消息
    */
-  private formatMessage(message: string, metadata?: LogMetadata): string {
+  private formatMessage(message: string, _metadata?: LogMetadata): string {
     let formattedMessage = message;
 
     if (this.context) {

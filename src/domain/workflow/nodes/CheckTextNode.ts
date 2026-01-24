@@ -4,10 +4,10 @@
  * 对文章进行质量检查，包括硬规则检查和 LLM 软评分
  */
 
-import { BaseNode } from './BaseNode.js';
+import { BaseNode, type NodeResult } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
 import type { QualityReport } from '../State.js';
-import type { QualityCheckDetails } from '../State.js';
+import type { QualityCheckDetails } from '../../entities/QualityCheck.js';
 import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
@@ -358,7 +358,7 @@ export class CheckTextNode extends BaseNode {
    * 生成改进建议
    */
   private generateFixSuggestions(
-    state: WorkflowState,
+    _state: WorkflowState,
     hardRulesCheck: HardRulesCheck,
     softScores: SoftScores,
     llmSuggestions: string[] = []
@@ -625,7 +625,7 @@ export class CheckTextNode extends BaseNode {
           taskId: state.taskId,
           previousCount: state.textRetryCount || 0,
           newCount: result.textRetryCount,
-          previousContentLength: result.previousContent.length,
+          previousContentLength: result.previousContent?.length || 0,
         });
       }
 
@@ -670,29 +670,29 @@ export class CheckTextNodeWithRepo extends CheckTextNode {
     this.qualityCheckRepo = qualityCheckRepo;
   }
 
-  async execute(state: WorkflowState): Promise<Partial<WorkflowState>> {
+  async execute(state: WorkflowState): Promise<NodeResult> {
     // 先执行正常的质检逻辑
     const result = await super.execute(state);
 
     // 如果有质检报告且提供了仓储，直接保存到数据库
-    if (result.textQualityReport && this.qualityCheckRepo) {
+    if (result.stateUpdate.textQualityReport && this.qualityCheckRepo) {
       try {
         await this.qualityCheckRepo.create({
           taskId: state.taskId,
           checkType: 'text',
-          score: result.textQualityReport.score || 0,
-          passed: result.textQualityReport.passed,
-          hardConstraintsPassed: result.textQualityReport.hardConstraintsPassed || false,
-          details: result.textQualityReport.details || {},
-          fixSuggestions: result.textQualityReport.fixSuggestions || [],
+          score: result.stateUpdate.textQualityReport!.score || 0,
+          passed: result.stateUpdate.textQualityReport!.passed,
+          hardConstraintsPassed: result.stateUpdate.textQualityReport!.hardConstraintsPassed || false,
+          details: result.stateUpdate.textQualityReport!.details || {},
+          fixSuggestions: result.stateUpdate.textQualityReport!.fixSuggestions || [],
           rubricVersion: '1.0',
-          modelName: result.textQualityReport.modelName,
+          modelName: result.stateUpdate.textQualityReport!.modelName,
         });
 
         this.logger.info('Text quality report saved to database directly from CheckTextNode', {
           taskId: state.taskId,
-          score: result.textQualityReport.score,
-          passed: result.textQualityReport.passed,
+          score: result.stateUpdate.textQualityReport!.score,
+          passed: result.stateUpdate.textQualityReport!.passed,
         });
       } catch (error) {
         this.logger.error('Failed to save quality report from CheckTextNode', {

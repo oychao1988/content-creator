@@ -7,7 +7,6 @@
 
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
-import { config } from '../../config/index.js';
 import { createLogger } from '../logging/logger.js';
 
 const baseLogger = createLogger('LoggingService');
@@ -282,17 +281,8 @@ export class LoggingService {
    * 关闭日志器
    */
   async close(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.winstonLogger.close((error) => {
-        if (error) {
-          baseLogger.error('Failed to close logger', error);
-          reject(error);
-        } else {
-          baseLogger.info('Logger closed');
-          resolve();
-        }
-      });
-    });
+    this.winstonLogger.close();
+    baseLogger.info('Logger closed');
   }
 }
 

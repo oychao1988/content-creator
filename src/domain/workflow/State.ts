@@ -34,39 +34,16 @@ export interface OrganizedInfo {
 /**
  * 质检报告
  */
+import type { QualityCheckDetails } from '../entities/QualityCheck.js';
+
 export interface QualityReport {
   score: number;            // 评分（1-10）
   passed: boolean;          // 是否通过
   hardConstraintsPassed: boolean; // 硬性约束是否通过
-  details: {
-    // 硬规则检查结果
-    hardRules?: {
-      wordCount?: { passed: boolean; wordCount: number };
-      keywords?: { passed: boolean; found: string[] };
-      structure?: { passed: boolean; checks: object };
-    };
-
-    // 软评分（LLM）
-    softScores?: {
-      relevance?: { score: number; reason: string };
-      coherence?: { score: number; reason: string };
-      completeness?: { score: number; reason: string };
-      readability?: { score: number; reason: string };
-    };
-
-    // 其他详情
-    wordCount?: number;
-    keywordsFound?: string[];
-    structureCheck?: {
-      hasTitle: boolean;
-      hasIntro: boolean;
-      hasBody: boolean;
-      hasConclusion: boolean;
-    };
-  };
-
-  // 改进建议（用于重写/重生成）
-  fixSuggestions?: string[];
+  modelName?: string;       // 使用的模型名称
+  details: QualityCheckDetails; // 质检详情
+  fixSuggestions?: string[]; // 改进建议（用于重写/重生成）
+  checkedAt?: number;       // 检查时间戳
 }
 
 /**
@@ -144,6 +121,9 @@ export function createInitialState(params: {
   mode: ExecutionMode;
   topic: string;
   requirements: string;
+  targetAudience?: string;
+  keywords?: string[];
+  tone?: string;
   hardConstraints?: {
     minWords?: number;
     maxWords?: number;
@@ -199,16 +179,16 @@ export class StateUpdater {
   /**
    * 增加重试计数
    */
-  static incrementTextRetry(): Partial<WorkflowState> {
-    return (state: WorkflowState) => ({
+  static incrementTextRetry(state: WorkflowState): Partial<WorkflowState> {
+    return {
       textRetryCount: state.textRetryCount + 1,
-    });
+    };
   }
 
-  static incrementImageRetry(): Partial<WorkflowState> {
-    return (state: WorkflowState) => ({
+  static incrementImageRetry(state: WorkflowState): Partial<WorkflowState> {
+    return {
       imageRetryCount: state.imageRetryCount + 1,
-    });
+    };
   }
 
   /**

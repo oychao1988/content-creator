@@ -5,9 +5,9 @@
  * 使用乐观锁确保并发安全
  */
 
+import crypto from 'crypto';
 import { createLogger } from '../logging/logger.js';
-import { PostgresTaskRepository } from '../database/PostgresTaskRepository.js';
-import { config } from '../../config/index.js';
+import { BaseRepository } from '../database/BaseRepository.js';
 import { metricsService } from '../monitoring/MetricsService.js';
 
 const logger = createLogger('Quota');
@@ -38,12 +38,11 @@ export interface QuotaReservation {
 /**
  * 配额服务类
  */
-export class QuotaService {
-  private repo: PostgresTaskRepository;
+export class QuotaService extends BaseRepository {
   private defaultQuota: number = 100; // 默认每日配额
 
   constructor() {
-    this.repo = new PostgresTaskRepository(config.database.url);
+    super();
   }
 
   /**
@@ -54,7 +53,7 @@ export class QuotaService {
       // 先检查是否需要重置今日配额
       await this.resetIfNeed(userId);
 
-      const result = await this.repo.query(
+      const result = await this.query(
         `SELECT user_id, quota_daily, quota_used_today, quota_reserved, last_reset_at
          FROM users
          WHERE user_id = $1`,
@@ -66,7 +65,7 @@ export class QuotaService {
         return null;
       }
 
-      const row = result.rows[0];
+      const row = result.rows[0] as any;
       const quotaDaily = row.quota_daily || this.defaultQuota;
       const quotaUsedToday = row.quota_used_today || 0;
       const quotaReserved = row.quota_reserved || 0;
@@ -112,7 +111,7 @@ export class QuotaService {
       }
 
       // 使用乐观锁预留配额
-      const result = await this.repo.query(
+      const result = await this.query(
         `UPDATE users
          SET quota_reserved = quota_reserved + $1,
              version = version + 1
@@ -131,7 +130,7 @@ export class QuotaService {
       const expiresAt = new Date(Date.now() + ttl * 1000);
 
       // 记录预留
-      await this.repo.query(
+      await this.query(
         `INSERT INTO quota_reservations (id, user_id, amount, created_at, expires_at)
          VALUES ($1, $2, $3, NOW(), $4)`,
         [reservationId, userId, amount, expiresAt]
@@ -159,7 +158,7 @@ export class QuotaService {
   async consumeQuota(userId: string, reservationId: string): Promise<boolean> {
     try {
       // 获取预留信息
-      const reservationResult = await this.repo.query(
+      const reservationResult = await this.query(
         `SELECT id, user_id, amount, expires_at
          FROM quota_reservations
          WHERE id = $1 AND user_id = $2 AND consumed = false`,
@@ -171,7 +170,7 @@ export class QuotaService {
         return false;
       }
 
-      const reservation = reservationResult.rows[0];
+      const reservation = reservationResult.rows[0] as any;
 
       // 检查是否过期
       if (new Date(reservation.expires_at) < new Date()) {
@@ -179,7 +178,7 @@ export class QuotaService {
         // 释放预留
         await this.releaseQuota(userId, reservation.amount);
         // 标记为已消费（虽然实际没消费）
-        await this.repo.query(
+        await this.query(
           `UPDATE quota_reservations SET consumed = true WHERE id = $1`,
           [reservationId]
         );
@@ -187,11 +186,11 @@ export class QuotaService {
       }
 
       // 使用事务确保原子性
-      await this.repo.query('BEGIN', []);
+      await this.query('BEGIN', []);
 
       try {
         // 减少预留配额
-        await this.repo.query(
+        await this.query(
           `UPDATE users
            SET quota_reserved = quota_reserved - $1,
                quota_used_today = quota_used_today + $1,
@@ -201,14 +200,14 @@ export class QuotaService {
         );
 
         // 标记预留为已消费
-        await this.repo.query(
+        await this.query(
           `UPDATE quota_reservations
            SET consumed = true, consumed_at = NOW()
            WHERE id = $1`,
           [reservationId]
         );
 
-        await this.repo.query('COMMIT', []);
+        await this.query('COMMIT', []);
 
         logger.info('Quota consumed', {
           reservationId,
@@ -220,7 +219,7 @@ export class QuotaService {
 
         return true;
       } catch (error) {
-        await this.repo.query('ROLLBACK', []);
+        await this.query('ROLLBACK', []);
         throw error;
       }
     } catch (error) {
@@ -234,7 +233,7 @@ export class QuotaService {
    */
   async consumeDirectly(userId: string, amount: number): Promise<boolean> {
     try {
-      const result = await this.repo.query(
+      const result = await this.query(
         `UPDATE users
          SET quota_used_today = quota_used_today + $1,
              version = version + 1
@@ -262,7 +261,7 @@ export class QuotaService {
    */
   async releaseQuota(userId: string, amount: number): Promise<boolean> {
     try {
-      await this.repo.query(
+      await this.query(
         `UPDATE users
          SET quota_reserved = GREATEST(0, quota_reserved - $1),
              version = version + 1
@@ -283,7 +282,7 @@ export class QuotaService {
    */
   private async resetIfNeed(userId: string): Promise<void> {
     try {
-      const result = await this.repo.query(
+      const result = await this.query(
         `SELECT user_id, last_reset_at, quota_used_today
          FROM users
          WHERE user_id = $1`,
@@ -294,12 +293,12 @@ export class QuotaService {
         return;
       }
 
-      const lastReset = new Date(result.rows[0].last_reset_at);
+      const lastReset = new Date((result.rows[0] as any).last_reset_at);
       const now = new Date();
 
       // 如果上次重置不是今天，则重置
       if (lastReset.toDateString() !== now.toDateString()) {
-        await this.repo.query(
+        await this.query(
           `UPDATE users
            SET quota_used_today = 0,
                last_reset_at = NOW()
@@ -319,7 +318,7 @@ export class QuotaService {
    */
   async resetUserQuota(userId: string): Promise<boolean> {
     try {
-      await this.repo.query(
+      await this.query(
         `UPDATE users
          SET quota_used_today = 0,
            quota_reserved = 0,
@@ -341,7 +340,7 @@ export class QuotaService {
    */
   async setUserQuota(userId: string, quotaDaily: number): Promise<boolean> {
     try {
-      await this.repo.query(
+      await this.query(
         `UPDATE users
          SET quota_daily = $1
          WHERE user_id = $2`,
@@ -362,14 +361,14 @@ export class QuotaService {
   async cleanupExpiredReservations(): Promise<number> {
     try {
       // 获取过期的预留
-      const result = await this.repo.query(
+      const result = await this.query(
         `SELECT id, user_id, amount
          FROM quota_reservations
          WHERE expires_at < NOW() AND consumed = false`,
         []
       );
 
-      const expired = result.rows;
+      const expired = result.rows as any[];
 
       // 释放预留
       for (const row of expired) {
@@ -377,7 +376,7 @@ export class QuotaService {
       }
 
       // 标记为已消费（实际未消费）
-      await this.repo.query(
+      await this.query(
         `UPDATE quota_reservations
          SET consumed = true
          WHERE expires_at < NOW() AND consumed = false`,
@@ -397,7 +396,7 @@ export class QuotaService {
    */
   async healthCheck(): Promise<boolean> {
     try {
-      await this.repo.query('SELECT 1', []);
+      await this.query('SELECT 1', []);
       return true;
     } catch (error) {
       logger.error('Quota service health check failed', error as Error);

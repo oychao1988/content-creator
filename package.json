@@ -1,9 +1,37 @@
 {
-  "name": "content-creator",
+  "name": "llm-content-creator",
   "version": "0.1.0",
-  "description": "A content creator tool",
+  "description": "AI 驱动的内容创作工具库",
   "main": "dist/index.js",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./config": {
+      "import": "./dist/config/index.js",
+      "require": "./dist/config/index.cjs"
+    },
+    "./database": {
+      "import": "./dist/infrastructure/database/index.js",
+      "require": "./dist/infrastructure/database/index.cjs"
+    },
+    "./workflow": {
+      "import": "./dist/domain/workflow/ContentCreatorGraph.js",
+      "require": "./dist/domain/workflow/ContentCreatorGraph.cjs"
+    },
+    "./executor": {
+      "import": "./dist/application/workflow/SyncExecutor.js",
+      "require": "./dist/application/workflow/SyncExecutor.cjs"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "src/**/*.ts",
+    "README.md",
+    "docs/**/*"
+  ],
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
@@ -36,10 +64,24 @@
     "ai",
     "content-creation",
     "langgraph",
-    "llm"
+    "llm",
+    "workflow",
+    "automation",
+    "writing"
   ],
-  "author": "",
+  "author": "Oychao",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oychao1988/content-creator"
+  },
+  "homepage": "https://github.com/oychao1988/content-creator#readme",
+  "bugs": {
+    "url": "https://github.com/oychao1988/content-creator/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18.0.0"
   },

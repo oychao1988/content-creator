@@ -7,10 +7,14 @@
 import type { Task } from '../entities/Task.js';
 import { TaskStatus, ExecutionMode } from '../entities/Task.js';
 
+// 重新导出 Task 类型，方便其他模块使用
+export type { Task };
+
 /**
  * 创建任务输入参数
  */
 export interface CreateTaskInput {
+  id?: string;
   userId?: string;
   mode: ExecutionMode;
   topic: string;
@@ -40,6 +44,58 @@ export interface TaskFilter {
 export interface Pagination {
   limit?: number;
   offset?: number;
+}
+
+/**
+ * 分页结果
+ */
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * 创建任务参数（简化版本，用于 SQLite/Memory Repository）
+ */
+export interface TaskCreateParams {
+  id: string;
+  traceId?: string;
+  mode: string;
+  type: string;
+  topic: string;
+  requirements: string;
+  hardConstraints?: any;
+  maxRetries?: number;
+  priority?: number;
+}
+
+/**
+ * 更新任务参数（简化版本，用于 SQLite/Memory Repository）
+ */
+export interface TaskUpdateParams {
+  status?: string;
+  currentStep?: string;
+  errorMessage?: string;
+  retryCount?: number;
+  workerId?: string;
+  startedAt?: string;
+  completedAt?: string;
+  version?: number;
+}
+
+/**
+ * 任务列表过滤器（简化版本，用于 SQLite/Memory Repository）
+ */
+export interface TaskListFilters {
+  status?: string;
+  workerId?: string;
+  type?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
 }
 
 /**

@@ -6,8 +6,9 @@
  */
 
 import { Command } from 'commander';
-import { createTaskWorker } from '../../workers/index.js';
-import { createLogger } from '../../infrastructure/logging/logger.js';
+import { v4 as uuidv4 } from 'uuid';
+import { createTaskWorker } from '../workers/TaskWorker.js';
+import { createLogger } from '../infrastructure/logging/logger.js';
 
 const logger = createLogger('WorkerCLI');
 const program = new Command();
@@ -20,7 +21,7 @@ program
 program
   .command('start')
   .description('启动 Worker')
-  .option('-w, --worker-id <id>', 'Worker ID', process.env.WORKER_ID || `worker-${process.pid}`)
+  .option('-w, --worker-id <id>', 'Worker ID', process.env.WORKER_ID || `worker-${uuidv4()}`)
   .option('-c, --concurrency <number>', '并发数', '2')
   .action(async (options) => {
     try {

@@ -125,14 +125,14 @@ export class HardRuleChecker {
     // 1. 字数检查
     const wordCountCheck = this.checkWordCount(content, constraints);
     result.details.wordCount = wordCountCheck;
-    if (!wordCountCheck.passed) {
+    if (!wordCountCheck!.passed) {
       result.passed = false;
       result.score = 0;
       result.issues.push({
         severity: 'error',
         category: 'word_count',
-        message: this.getWordCountErrorMessage(wordCountCheck),
-        suggestion: this.getWordCountSuggestion(wordCountCheck),
+        message: this.getWordCountErrorMessage(wordCountCheck!),
+        suggestion: this.getWordCountSuggestion(wordCountCheck!),
       });
     }
 
@@ -140,14 +140,14 @@ export class HardRuleChecker {
     if (constraints.keywords && constraints.keywords.length > 0) {
       const keywordCheck = this.checkKeywords(content, constraints);
       result.details.keywords = keywordCheck;
-      if (!keywordCheck.passed) {
+      if (!keywordCheck!.passed) {
         result.passed = false;
         result.score = 0;
         result.issues.push({
           severity: 'error',
           category: 'keywords',
-          message: this.getKeywordsErrorMessage(keywordCheck, constraints),
-          suggestion: this.getKeywordsSuggestion(keywordCheck),
+          message: this.getKeywordsErrorMessage(keywordCheck!, constraints),
+          suggestion: this.getKeywordsSuggestion(keywordCheck!),
         });
       }
     }
@@ -155,14 +155,14 @@ export class HardRuleChecker {
     // 3. 结构检查
     const structureCheck = this.checkStructure(content, constraints);
     result.details.structure = structureCheck;
-    if (!structureCheck.passed) {
+    if (!structureCheck!.passed) {
       result.passed = false;
       result.score = 0;
       result.issues.push({
         severity: 'error',
         category: 'structure',
-        message: this.getStructureErrorMessage(structureCheck, constraints),
-        suggestion: this.getStructureSuggestion(structureCheck, constraints),
+        message: this.getStructureErrorMessage(structureCheck!, constraints),
+        suggestion: this.getStructureSuggestion(structureCheck!, constraints),
       });
     }
 
@@ -170,14 +170,14 @@ export class HardRuleChecker {
     if (constraints.forbiddenWords && constraints.forbiddenWords.length > 0) {
       const forbiddenCheck = this.checkForbiddenWords(content, constraints);
       result.details.forbiddenWords = forbiddenCheck;
-      if (!forbiddenCheck.passed) {
+      if (!forbiddenCheck!.passed) {
         result.passed = false;
         result.score = 0;
         result.issues.push({
           severity: 'error',
           category: 'forbidden_words',
-          message: this.getForbiddenWordsErrorMessage(forbiddenCheck),
-          suggestion: this.getForbiddenWordsSuggestion(forbiddenCheck),
+          message: this.getForbiddenWordsErrorMessage(forbiddenCheck!),
+          suggestion: this.getForbiddenWordsSuggestion(forbiddenCheck!),
         });
       }
     }
@@ -260,19 +260,19 @@ export class HardRuleChecker {
 
     // 检查标题（第一行很短或以 # 开头）
     const hasTitle = constraints.requireTitle
-      ? lines.length > 0 && (lines[0].length < 40 || lines[0].startsWith('#'))
+      ? lines.length > 0 && (lines[0]!.length < 40 || lines[0]!.startsWith('#'))
       : true;
 
     // 检查导语（前几段中有一段适中的）
     const hasIntro = constraints.requireIntro
       ? lines.some((line, index) =>
-          index < 3 && line.length > 10 && line.length < 300
+          index < 3 && line!.length > 10 && line!.length < 300
         )
       : true;
 
     // 检查结尾（最后一段有一定长度）
     const hasConclusion = constraints.requireConclusion
-      ? lines.length > 0 && lines[lines.length - 1].length > 10
+      ? lines.length > 0 && lines[lines.length - 1]!.length > 10
       : true;
 
     // 检查段落数
@@ -353,11 +353,11 @@ export class HardRuleChecker {
   private getWordCountErrorMessage(
     check: HardRuleCheckResult['details']['wordCount']
   ): string {
-    if (check.min !== undefined && check.count < check.min) {
-      return `字数不足：当前 ${check.count} 字，最少需要 ${check.min} 字`;
+    if (check!.min !== undefined && check!.count < check!.min) {
+      return `字数不足：当前 ${check!.count} 字，最少需要 ${check!.min} 字`;
     }
-    if (check.max !== undefined && check.count > check.max) {
-      return `字数超标：当前 ${check.count} 字，最多允许 ${check.max} 字`;
+    if (check!.max !== undefined && check!.count > check!.max) {
+      return `字数超标：当前 ${check!.count} 字，最多允许 ${check!.max} 字`;
     }
     return '字数不符合要求';
   }
@@ -368,11 +368,11 @@ export class HardRuleChecker {
   private getWordCountSuggestion(
     check: HardRuleCheckResult['details']['wordCount']
   ): string {
-    if (check.min !== undefined && check.count < check.min) {
-      return `需要增加至少 ${check.min - check.count} 字内容`;
+    if (check!.min !== undefined && check!.count < check!.min) {
+      return `需要增加至少 ${check!.min - check!.count} 字内容`;
     }
-    if (check.max !== undefined && check.count > check.max) {
-      return `需要删减至少 ${check.count - check.max} 字内容`;
+    if (check!.max !== undefined && check!.count > check!.max) {
+      return `需要删减至少 ${check!.count - check!.max} 字内容`;
     }
     return '调整内容长度以满足字数要求';
   }
@@ -385,9 +385,9 @@ export class HardRuleChecker {
     constraints: HardConstraints
   ): string {
     if (constraints.requireAllKeywords) {
-      return `缺少关键词：${check.missing.join('、')}`;
+      return `缺少关键词：${check!.missing.join('、')}`;
     } else {
-      return `至少需要包含以下关键词之一：${check.required.join('、')}`;
+      return `至少需要包含以下关键词之一：${check!.required.join('、')}`;
     }
   }
 
@@ -397,7 +397,7 @@ export class HardRuleChecker {
   private getKeywordsSuggestion(
     check: HardRuleCheckResult['details']['keywords']
   ): string {
-    return `在内容中添加以下关键词：${check.missing.join('、')}`;
+    return `在内容中添加以下关键词：${check!.missing.join('、')}`;
   }
 
   /**
@@ -409,22 +409,22 @@ export class HardRuleChecker {
   ): string {
     const missing: string[] = [];
 
-    if (constraints.requireTitle && !check.hasTitle) {
+    if (constraints.requireTitle && !check!.hasTitle) {
       missing.push('标题');
     }
-    if (constraints.requireIntro && !check.hasIntro) {
+    if (constraints.requireIntro && !check!.hasIntro) {
       missing.push('导语');
     }
-    if (constraints.requireConclusion && !check.hasConclusion) {
+    if (constraints.requireConclusion && !check!.hasConclusion) {
       missing.push('结尾');
     }
-    if (constraints.minSections && check.sectionCount < constraints.minSections) {
+    if (constraints.minSections && check!.sectionCount < constraints.minSections) {
       missing.push(`段落数（需要至少${constraints.minSections}段）`);
     }
-    if (constraints.hasBulletPoints && !check.hasBulletPoints) {
+    if (constraints.hasBulletPoints && !check!.hasBulletPoints) {
       missing.push('项目符号列表');
     }
-    if (constraints.hasNumberedList && !check.hasNumberedList) {
+    if (constraints.hasNumberedList && !check!.hasNumberedList) {
       missing.push('编号列表');
     }
 
@@ -440,22 +440,22 @@ export class HardRuleChecker {
   ): string {
     const suggestions: string[] = [];
 
-    if (constraints.requireTitle && !check.hasTitle) {
+    if (constraints.requireTitle && !check!.hasTitle) {
       suggestions.push('添加一个简短的标题');
     }
-    if (constraints.requireIntro && !check.hasIntro) {
+    if (constraints.requireIntro && !check!.hasIntro) {
       suggestions.push('在开头添加导语段落（50-300字）');
     }
-    if (constraints.requireConclusion && !check.hasConclusion) {
+    if (constraints.requireConclusion && !check!.hasConclusion) {
       suggestions.push('在结尾添加总结段落');
     }
-    if (constraints.minSections && check.sectionCount < constraints.minSections) {
+    if (constraints.minSections && check!.sectionCount < constraints.minSections) {
       suggestions.push(`增加段落数至至少 ${constraints.minSections} 段`);
     }
-    if (constraints.hasBulletPoints && !check.hasBulletPoints) {
+    if (constraints.hasBulletPoints && !check!.hasBulletPoints) {
       suggestions.push('添加项目符号列表以增强可读性');
     }
-    if (constraints.hasNumberedList && !check.hasNumberedList) {
+    if (constraints.hasNumberedList && !check!.hasNumberedList) {
       suggestions.push('添加编号列表以组织内容');
     }
 
@@ -468,7 +468,7 @@ export class HardRuleChecker {
   private getForbiddenWordsErrorMessage(
     check: HardRuleCheckResult['details']['forbiddenWords']
   ): string {
-    return `内容包含禁用词：${check.found.join('、')}`;
+    return `内容包含禁用词：${check!.found.join('、')}`;
   }
 
   /**
@@ -477,7 +477,7 @@ export class HardRuleChecker {
   private getForbiddenWordsSuggestion(
     check: HardRuleCheckResult['details']['forbiddenWords']
   ): string {
-    return `移除或替换以下禁用词：${check.found.join('、')}`;
+    return `移除或替换以下禁用词：${check!.found.join('、')}`;
   }
 
   /**

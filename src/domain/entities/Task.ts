@@ -150,6 +150,9 @@ export interface UpdateTaskParams {
   version: number;               // 必需：用于乐观锁
 }
 
+import type { TaskStep } from './TaskStep.js';
+import type { Result } from './Result.js';
+
 /**
  * 任务状态转换
  */
@@ -173,47 +176,3 @@ export function isValidStatusTransition(
   return allowedTransitions.includes(newStatus);
 }
 
-/**
- * 任务步骤（内嵌实体）
- */
-export interface TaskStep {
-  id: string;
-  taskId: string;
-  stepType: string;              // 步骤类型（search, organize, write, check_text, gen_image, check_image）
-  status: TaskStatus;            // 步骤状态
-  input: any;                    // 输入参数（JSON）
-  output?: any;                  // 输出结果（JSON，可选）
-  error?: string;                // 错误信息（可选）
-  startedAt?: Date;
-  completedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * 结果（内嵌实体）
- */
-export interface Result {
-  id: string;
-  taskId: string;
-  resultType: 'text' | 'image';  // 结果类型
-  content: string;               // 文本内容或图片 URL
-  metadata?: any;                // 元数据（JSON，可选）
-  createdAt: Date;
-}
-
-/**
- * 质量检查（内嵌实体）
- */
-export interface QualityCheck {
-  id: string;
-  taskId: string;
-  checkType: 'hard_rule' | 'llm'; // 检查类型
-  category: string;              // 检查类别
-  passed: boolean;               // 是否通过
-  score?: number;                // 评分（0-100，可选）
-  reason?: string;               // 原因说明（可选）
-  details?: any;                // 详细信息（JSON，可选）
-  checkedAt: Date;
-  createdAt: Date;
-}

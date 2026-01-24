@@ -20,26 +20,29 @@ const envSchema = z.object({
   // Node 环境
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
-  // PostgreSQL 配置
-  POSTGRES_HOST: z.string().min(1),
-  POSTGRES_PORT: z.string().transform(Number).pipe(z.number().int().positive().default(5432)),
-  POSTGRES_USER: z.string().min(1),
-  POSTGRES_PASSWORD: z.string().min(1),
-  POSTGRES_DB: z.string().min(1),
-  POSTGRES_SSL: z.string().transform((val) => val === 'true').default('false'),
+  // 数据库类型（根据环境自动选择默认值）
+  DATABASE_TYPE: z.enum(['memory', 'postgres', 'sqlite']).optional(),
 
-  // Redis 配置
-  REDIS_URL: z.string().url(),
+  // PostgreSQL 配置（仅在 DATABASE_TYPE='postgres' 时必需）
+  POSTGRES_HOST: z.string().min(1).optional(),
+  POSTGRES_PORT: z.coerce.number().int().positive().default(5432).optional(),
+  POSTGRES_USER: z.string().min(1).optional(),
+  POSTGRES_PASSWORD: z.string().min(1).optional(),
+  POSTGRES_DB: z.string().min(1).optional(),
+  POSTGRES_SSL: z.coerce.boolean().default(false).optional(),
+
+  // Redis 配置（可选，仅在使用队列/缓存/限流时需要）
+  REDIS_URL: z.string().url().optional(),
   REDIS_PASSWORD: z.string().optional(),
-  REDIS_DB: z.string().transform(Number).pipe(z.number().int().nonnegative()).default('0'),
+  REDIS_DB: z.coerce.number().int().nonnegative().default(0).optional(),
 
   // LLM 服务配置（DeepSeek）
   LLM_API_KEY: z.string().min(1),
   LLM_BASE_URL: z.string().url(),
   LLM_MODEL_NAME: z.string().default('deepseek-chat'),
-  LLM_MAX_TOKENS: z.string().transform(Number).pipe(z.number().int().positive()).default('4000'),
-  LLM_TEMPERATURE: z.string().transform(Number).pipe(z.number().min(0).max(2)).default('0.7'),
-  LLM_ENABLE_CACHE: z.string().transform((val) => val === 'true').default('true').optional(),
+  LLM_MAX_TOKENS: z.coerce.number().int().positive().default(4000),
+  LLM_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.7),
+  LLM_ENABLE_CACHE: z.coerce.boolean().default(true).optional(),
 
   // Tavily API (MCP Search)
   TAVILY_API_KEY: z.string().min(1),
@@ -52,9 +55,6 @@ const envSchema = z.object({
   STORAGE_PROVIDER: z.enum(['local', 's3', 'oss', 'minio']).default('local'),
   STORAGE_PATH: z.string().default('./data/images'),
 
-  // 数据库类型
-  DATABASE_TYPE: z.enum(['memory', 'postgres', 'sqlite']).default('memory'),
-
   // AWS S3 配置（如果使用 S3）
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
@@ -63,7 +63,7 @@ const envSchema = z.object({
 
   // Worker 配置
   WORKER_ID: z.string().default('worker-1'),
-  WORKER_CONCURRENCY: z.string().transform(Number).pipe(z.number().int().positive()).default('2'),
+  WORKER_CONCURRENCY: z.coerce.number().int().positive().default(2),
 
   // 日志配置
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
@@ -85,6 +85,7 @@ export type Env = z.infer<typeof envSchema>;
  */
 class Config {
   private env: Env;
+  private databaseType: 'memory' | 'postgres' | 'sqlite';
 
   constructor() {
     // 加载并验证环境变量
@@ -92,14 +93,63 @@ class Config {
 
     if (!result.success) {
       console.error('Environment variable validation failed:');
-      console.error(result.error.errors);
+      console.error(result.error.issues);
       throw new Error('Configuration validation failed. Please check your environment variables.');
     }
 
     this.env = result.data;
 
+    // 智能默认值：根据环境选择数据库类型
+    this.databaseType = this.env.DATABASE_TYPE ?? this.getDefaultDatabaseType();
+
+    // 验证 PostgreSQL 配置（如果使用 postgres）
+    this.validatePostgresConfig();
+
     // 输出关键配置信息（脱敏）
     this.logConfig();
+  }
+
+  /**
+   * 根据环境返回默认数据库类型
+   */
+  private getDefaultDatabaseType(): 'memory' | 'postgres' | 'sqlite' {
+    const nodeEnv = this.env.NODE_ENV;
+
+    switch (nodeEnv) {
+      case 'development':
+        return 'sqlite'; // 开发环境默认使用 SQLite
+      case 'production':
+        return 'postgres'; // 生产环境默认使用 PostgreSQL
+      case 'test':
+        return 'memory'; // 测试环境默认使用内存数据库
+      default:
+        return 'sqlite';
+    }
+  }
+
+  /**
+   * 验证 PostgreSQL 配置（当使用 postgres 时）
+   */
+  validatePostgresConfig(): void {
+    if (this.databaseType === 'postgres') {
+      const requiredFields = [
+        'POSTGRES_HOST',
+        'POSTGRES_USER',
+        'POSTGRES_PASSWORD',
+        'POSTGRES_DB',
+      ] as const;
+
+      const missingFields = requiredFields.filter(
+        (field) => !this.env[field]
+      );
+
+      if (missingFields.length > 0) {
+        throw new Error(
+          `PostgreSQL configuration is required when DATABASE_TYPE='postgres'. ` +
+          `Missing environment variables: ${missingFields.join(', ')}`
+        );
+      }
+    }
   }
 
   /**
@@ -112,8 +162,24 @@ class Config {
     console.log(`Environment: ${this.env.NODE_ENV}`);
     console.log(`Worker ID: ${this.env.WORKER_ID}`);
     console.log(`Concurrency: ${this.env.WORKER_CONCURRENCY}`);
-    console.log(`PostgreSQL: ${this.env.POSTGRES_HOST}:${this.env.POSTGRES_PORT}/${this.env.POSTGRES_DB}`);
-    console.log(`Redis: ${this.maskUrl(this.env.REDIS_URL)}`);
+    console.log(`Database Type: ${this.databaseType}`);
+
+    // 仅在使用 PostgreSQL 时显示连接信息
+    if (this.databaseType === 'postgres') {
+      console.log(
+        `PostgreSQL: ${this.env.POSTGRES_HOST}:${this.env.POSTGRES_PORT}/${this.env.POSTGRES_DB}`
+      );
+    } else {
+      console.log('PostgreSQL: Not configured (using ' + this.databaseType + ')');
+    }
+
+    // Redis 配置（可选）
+    if (this.env.REDIS_URL) {
+      console.log(`Redis: ${this.maskUrl(this.env.REDIS_URL)}`);
+    } else {
+      console.log('Redis: Not configured (queue/cache/rate-limit will be disabled)');
+    }
+
     console.log(`LLM: ${this.env.LLM_MODEL_NAME} @ ${this.env.LLM_BASE_URL}`);
     console.log(`Storage: ${this.env.STORAGE_PROVIDER}`);
     console.log('========================================');
@@ -122,7 +188,8 @@ class Config {
   /**
    * 脱敏 URL（隐藏密码）
    */
-  private maskUrl(url: string): string {
+  private maskUrl(url: string | undefined): string {
+    if (!url) return 'N/A';
     return url.replace(/:([^:@]+)@/, ':****@');
   }
 
@@ -144,13 +211,14 @@ class Config {
 
   get database() {
     return {
-      type: this.env.DATABASE_TYPE,
+      type: this.databaseType,
+      // PostgreSQL 配置（仅在 type='postgres' 时有效）
       host: this.env.POSTGRES_HOST,
-      port: this.env.POSTGRES_PORT,
+      port: this.env.POSTGRES_PORT ?? 5432,
       user: this.env.POSTGRES_USER,
       password: this.env.POSTGRES_PASSWORD,
       database: this.env.POSTGRES_DB,
-      ssl: this.env.POSTGRES_SSL,
+      ssl: this.env.POSTGRES_SSL ?? false,
       // 连接池配置
       poolMax: 25, // 最大连接数
       poolMin: 2, // 最小连接数
@@ -163,11 +231,11 @@ class Config {
   get postgres() {
     return {
       host: this.env.POSTGRES_HOST,
-      port: this.env.POSTGRES_PORT,
+      port: this.env.POSTGRES_PORT ?? 5432,
       user: this.env.POSTGRES_USER,
       password: this.env.POSTGRES_PASSWORD,
       database: this.env.POSTGRES_DB,
-      ssl: this.env.POSTGRES_SSL,
+      ssl: this.env.POSTGRES_SSL ?? false,
     };
   }
 
@@ -175,9 +243,10 @@ class Config {
 
   get redis() {
     return {
+      enabled: !!this.env.REDIS_URL,
       url: this.env.REDIS_URL,
       password: this.env.REDIS_PASSWORD,
-      db: this.env.REDIS_DB,
+      db: this.env.REDIS_DB ?? 0,
       // 连接池配置
       maxRetriesPerRequest: 3,
       retryStrategy: (times: number) => {
@@ -187,7 +256,7 @@ class Config {
       // 连接超时
       connectTimeout: 10000,
       // 命令超时
-      commandTimeout: 5000,
+      commandTimeout: 30000,
     };
   }
 

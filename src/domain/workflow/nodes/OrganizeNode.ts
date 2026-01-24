@@ -200,11 +200,11 @@ export class OrganizeNode extends BaseNode {
 
     if (
       !output.keyPoints ||
-      output.keyPoints.length < this.config.minKeyPoints ||
-      output.keyPoints.length > this.config.maxKeyPoints
+      output.keyPoints.length < (this.config.minKeyPoints || 3) ||
+      output.keyPoints.length > (this.config.maxKeyPoints || 5)
     ) {
       throw new Error(
-        `Key points count must be between ${this.config.minKeyPoints} and ${this.config.maxKeyPoints}`
+        `Key points count must be between ${this.config.minKeyPoints || 3} and ${this.config.maxKeyPoints || 5}`
       );
     }
 
@@ -214,8 +214,8 @@ export class OrganizeNode extends BaseNode {
 
     const summaryLength = output.summary.length;
     if (
-      summaryLength < this.config.minSummaryLength ||
-      summaryLength > this.config.maxSummaryLength
+      summaryLength < (this.config.minSummaryLength || 100) ||
+      summaryLength > (this.config.maxSummaryLength || 150)
     ) {
       logger.warn('Summary length is out of recommended range', {
         length: summaryLength,

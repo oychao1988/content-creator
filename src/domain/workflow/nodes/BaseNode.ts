@@ -147,7 +147,7 @@ export abstract class BaseNode {
    * @param state - 当前工作流状态
    * @returns 尝试次数
    */
-  protected getAttemptCount(state: WorkflowState): number {
+  protected getAttemptCount(_state: WorkflowState): number {
     // 默认：返回 0
     // 子类可以根据 state 中的重试计数器返回实际值
     return 0;

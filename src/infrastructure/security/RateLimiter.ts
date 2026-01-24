@@ -5,7 +5,6 @@
  * 支持基于 IP、用户、API Key 的限流
  */
 
-import Redis from 'ioredis';
 import { redisClient } from '../redis/connection.js';
 import { createLogger } from '../logging/logger.js';
 import { metricsService } from '../monitoring/MetricsService.js';
@@ -42,12 +41,12 @@ export type RateLimiterType = 'sliding-window' | 'token-bucket' | 'fixed-window'
  */
 export class RateLimiter {
   private redisClientWrapper = redisClient;
-  private redis: Redis | null = null;
+  private redis: any | null = null;
 
   /**
    * 获取 Redis 客户端
    */
-  private async getRedis(): Promise<Redis> {
+  private async getRedis(): Promise<any> {
     if (!this.redis) {
       this.redis = await this.redisClientWrapper.getClient();
     }
@@ -204,7 +203,7 @@ export class RateLimiter {
         allowed,
         limit: config.limit,
         remaining: tokens,
-        resetTime: new Date(now + retryAfter ? retryAfter * 1000 : config.window * 1000),
+        resetTime: new Date(now + (retryAfter ?? 0) * 1000 + config.window * 1000),
         retryAfter,
       };
     } catch (error) {

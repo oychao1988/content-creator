@@ -14,15 +14,34 @@ const logger = createLogger('Redis');
  * Redis 客户端类
  */
 export class RedisClient {
-  private client: Redis | null = null;
+  private client: any | null = null;
   private isConnecting = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
+  private enabled: boolean;
+
+  constructor() {
+    this.enabled = config.redis.enabled;
+    if (!this.enabled) {
+      logger.info('Redis is disabled in configuration');
+    }
+  }
+
+  /**
+   * 检查 Redis 是否启用
+   */
+  isEnabled(): boolean {
+    return this.enabled;
+  }
 
   /**
    * 获取 Redis 客户端实例（单例）
    */
-  async getClient(): Promise<Redis> {
+  async getClient(): Promise<any> {
+    if (!this.enabled) {
+      throw new Error('Redis is not configured');
+    }
+
     if (this.client) {
       return this.client;
     }
@@ -39,10 +58,15 @@ export class RedisClient {
   /**
    * 连接到 Redis
    */
-  private async connect(): Promise<Redis> {
+  private async connect(): Promise<any> {
     this.isConnecting = true;
 
     try {
+      // 检查 Redis URL 是否配置
+      if (!config.redis.url) {
+        throw new Error('REDIS_URL is not configured');
+      }
+
       // 解析 Redis URL
       const redisUrl = new URL(config.redis.url);
 
@@ -57,7 +81,7 @@ export class RedisClient {
         host: redisUrl.hostname,
         port: parseInt(redisUrl.port) || 6379,
         db: config.redis.db,
-        maxRetriesPerRequest: config.redis.maxRetriesPerRequest,
+        maxRetriesPerRequest: null, // BullMQ Worker 要求必须设置为 null
         retryStrategy: (times: number) => {
           const delay = Math.min(times * 50, 2000);
           logger.debug(`Redis retry attempt ${times}, delay: ${delay}ms`);
@@ -75,7 +99,7 @@ export class RedisClient {
       }
 
       // 创建 Redis 客户端
-      this.client = new Redis(redisOptions);
+      this.client = new (Redis as any)(redisOptions);
 
       // 监听连接事件
       this.client.on('connect', () => {
@@ -88,7 +112,7 @@ export class RedisClient {
         logger.info('Redis ready');
       });
 
-      this.client.on('error', (error) => {
+      this.client.on('error', (error: Error) => {
         logger.error('Redis error', error);
       });
 
@@ -179,6 +203,13 @@ export const redisClient = new RedisClient();
 /**
  * 获取 Redis 客户端便捷方法
  */
-export async function getRedisClient(): Promise<Redis> {
+export async function getRedisClient(): Promise<any> {
   return await redisClient.getClient();
+}
+
+/**
+ * 检查 Redis 是否可用
+ */
+export function isRedisEnabled(): boolean {
+  return redisClient.isEnabled();
 }

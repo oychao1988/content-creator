@@ -65,14 +65,14 @@ describe('TaskWorker', () => {
     });
 
     it('should use process env for worker id', async () => {
-      const originalPid = process.pid;
       const originalWorkerId = process.env.WORKER_ID;
 
       // 临时删除 WORKER_ID 以测试默认行为
       delete process.env.WORKER_ID;
 
       const envWorker = createTaskWorker();
-      expect(envWorker.getWorkerId()).toContain(`worker-${originalPid}`);
+      // 现在使用 UUID 来生成唯一 worker id
+      expect(envWorker.getWorkerId()).toMatch(/^worker-[a-f0-9-]{36}$/);
       await envWorker.close();
 
       // 恢复原始 WORKER_ID

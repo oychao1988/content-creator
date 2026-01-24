@@ -7,20 +7,11 @@
 import { BaseNode } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
 import type { QualityReport } from '../State.js';
-import type { QualityCheckDetails } from '../State.js';
+import type { QualityCheckDetails } from '../../entities/QualityCheck.js';
 import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
 const logger = createLogger('CheckImageNode');
-
-/**
- * 图片质检详情
- */
-interface ImageQualityDetails {
-  relevanceScore: number;
-  aestheticScore: number;
-  promptMatch: number;
-}
 
 /**
  * LLM 图片质检输出
@@ -192,20 +183,6 @@ export class CheckImageNode extends BaseNode {
     }
 
     return output;
-  }
-
-  /**
-   * 计算加权总分
-   */
-  private calculateWeightedScore(details: ImageQualityDetails): number {
-    const weights = this.config.scoreWeights!;
-
-    const score =
-      details.relevanceScore * weights.relevance +
-      details.aestheticScore * weights.aesthetic +
-      details.promptMatch * weights.promptMatch;
-
-    return score;
   }
 
   /**

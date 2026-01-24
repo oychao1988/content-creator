@@ -6,8 +6,10 @@
  */
 
 import { Command } from 'commander';
-import { startMonitorServer } from '../../monitoring/index.js';
-import { createLogger } from '../../infrastructure/logging/logger.js';
+// @ts-ignore - Module resolution issue with NodeNext
+import { startMonitorServer } from '../../monitoring/index';
+// @ts-ignore - Module resolution issue with NodeNext
+import { createLogger } from '../../infrastructure/logging/logger';
 
 const logger = createLogger('MonitorCLI');
 const program = new Command();

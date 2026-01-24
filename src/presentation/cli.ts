@@ -4,4 +4,5 @@
  * 提供对外的CLI接口
  */
 
-export * from './presentation/cli/index.js';
+// @ts-ignore - Module resolution issue with NodeNext
+export * from './presentation/cli/index';

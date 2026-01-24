@@ -5,9 +5,8 @@
  * 所有具体 Repository 应该继承此类
  */
 
-import pg from 'pg';
-const { Pool } = pg;
-import type { PoolClient, QueryResult } from 'pg';
+import type { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { Pool as PoolClass } from 'pg';
 import { config } from '../../config/index.js';
 
 /**
@@ -26,7 +25,7 @@ export abstract class BaseRepository {
   protected pool: Pool;
 
   constructor(pool?: Pool) {
-    this.pool = pool || new Pool({
+    this.pool = pool || new PoolClass({
       host: config.database.host,
       port: config.database.port,
       database: config.database.database,
@@ -38,7 +37,7 @@ export abstract class BaseRepository {
     });
 
     // 监听连接池错误
-    this.pool.on('error', (err) => {
+    this.pool.on('error', (err: Error) => {
       console.error('Unexpected error on idle client', err);
       process.exit(-1);
     });
@@ -51,7 +50,7 @@ export abstract class BaseRepository {
    * @param params - 查询参数
    * @returns 查询结果
    */
-  protected async query<T>(text: string, params?: any[]): Promise<QueryResult<T>> {
+  protected async query<T extends QueryResultRow>(text: string, params?: any[]): Promise<QueryResult<T>> {
     const start = Date.now();
 
     try {
@@ -109,7 +108,7 @@ export abstract class BaseRepository {
    * @param queries - 查询数组
    * @returns 所有查询的结果数组
    */
-  protected async batchQuery<T>(queries: Array<{
+  protected async batchQuery<T extends QueryResultRow>(queries: Array<{
     text: string;
     params?: any[];
   }>): Promise<QueryResult<T>[]> {
@@ -140,7 +139,7 @@ export abstract class BaseRepository {
   ): Promise<boolean> {
     const text = `SELECT EXISTS(SELECT 1 FROM ${table} WHERE ${field} = $1)`;
     const result = await this.query<{ exists: boolean }>(text, [value]);
-    return result.rows[0].exists;
+    return result.rows[0]?.exists ?? false;
   }
 
   /**
@@ -153,7 +152,7 @@ export abstract class BaseRepository {
   protected async count(table: string, where: string = 'TRUE'): Promise<number> {
     const text = `SELECT COUNT(*) as count FROM ${table} WHERE ${where}`;
     const result = await this.query<{ count: string }>(text);
-    return parseInt(result.rows[0].count, 10);
+    return parseInt(result.rows[0]?.count ?? '0', 10);
   }
 
   /**

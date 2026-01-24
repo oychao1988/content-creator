@@ -14,7 +14,7 @@ import type {
   TaskListFilters,
   PaginatedResult,
 } from '../../domain/repositories/TaskRepository.js';
-import { TaskStatus, TaskType } from '../../domain/entities/Task.js';
+import { TaskStatus } from '../../domain/entities/Task.js';
 
 const logger = createLogger('SQLite:TaskRepository');
 
@@ -83,11 +83,15 @@ export class SQLiteTaskRepository {
       CREATE TABLE IF NOT EXISTS quality_checks (
         id TEXT PRIMARY KEY,
         task_id TEXT NOT NULL,
-        check_category TEXT NOT NULL,
+        check_type TEXT NOT NULL,
         score REAL,
         passed BOOLEAN NOT NULL DEFAULT 0,
+        hard_constraints_passed BOOLEAN NOT NULL DEFAULT 0,
         details TEXT,
         fix_suggestions TEXT,
+        rubric_version TEXT,
+        model_name TEXT,
+        prompt_hash TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
       );
@@ -97,6 +101,7 @@ export class SQLiteTaskRepository {
         task_id TEXT NOT NULL,
         result_type TEXT NOT NULL,
         content TEXT,
+        file_path TEXT,
         metadata TEXT,
         quality_score REAL,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -154,7 +159,7 @@ export class SQLiteTaskRepository {
       logger.info('Task created', { taskId: params.id, topic: params.topic });
       return task;
     } catch (error) {
-      logger.error('Failed to create task', { error, params });
+      logger.error('Failed to create task', { error: error as any, params });
       throw error;
     }
   }
@@ -232,7 +237,7 @@ export class SQLiteTaskRepository {
       logger.debug('Task updated', { taskId: id, updates: Object.keys(params) });
       return task;
     } catch (error) {
-      logger.error('Failed to update task', { error, taskId: id, params });
+      logger.error('Failed to update task', { error: error as any, taskId: id, params });
       throw error;
     }
   }
@@ -285,50 +290,8 @@ export class SQLiteTaskRepository {
 
       return tasks;
     } catch (error) {
-      logger.error('Failed to claim tasks', { error, workerId });
+      logger.error('Failed to claim tasks', { error: error as any, workerId });
       throw error;
-    }
-  }
-
-  /**
-   * 保存状态快照（用于崩溃恢复）
-   */
-  async saveStateSnapshot(taskId: string, step: string, state: any): Promise<void> {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO task_steps (id, task_id, step_type, status, output_data, updated_at)
-      VALUES (?, ?, ?, 'completed', ?, datetime('now'))
-    `);
-
-    try {
-      stmt.run(`${taskId}_${step}_${Date.now()}`, taskId, step, JSON.stringify(state));
-      logger.debug('State snapshot saved', { taskId, step });
-    } catch (error) {
-      logger.error('Failed to save state snapshot', { error, taskId, step });
-      throw error;
-    }
-  }
-
-  /**
-   * 恢复状态快照
-   */
-  async loadStateSnapshot(taskId: string): Promise<any | null> {
-    const stmt = this.db.prepare(`
-      SELECT output_data FROM task_steps
-      WHERE task_id = ? AND status = 'completed'
-      ORDER BY created_at DESC
-      LIMIT 1
-    `);
-
-    try {
-      const row = stmt.get(taskId) as any;
-      if (!row) {
-        return null;
-      }
-
-      return JSON.parse(row.output_data);
-    } catch (error) {
-      logger.error('Failed to load state snapshot', { error, taskId });
-      return null;
     }
   }
 
@@ -393,13 +356,250 @@ export class SQLiteTaskRepository {
   }
 
   /**
-   * 删除任务
+   * 更新任务状态（带乐观锁）
    */
-  async delete(id: string): Promise<boolean> {
+  async updateStatus(taskId: string, status: TaskStatus, version: number): Promise<boolean> {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE tasks
+      SET status = ?,
+          version = version + 1,
+          updated_at = ?
+      WHERE id = ? AND version = ?
+    `);
+
+    const result = stmt.run(status, now, taskId, version);
+    const updated = result.changes > 0;
+
+    if (updated) {
+      logger.debug('Task status updated', { taskId, status });
+    } else {
+      logger.warn('Task status update failed (version mismatch)', { taskId, expectedVersion: version });
+    }
+
+    return updated;
+  }
+
+  /**
+   * 更新当前步骤（带乐观锁）
+   */
+  async updateCurrentStep(taskId: string, step: string, version: number): Promise<boolean> {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE tasks
+      SET current_step = ?,
+          version = version + 1,
+          updated_at = ?
+      WHERE id = ? AND version = ?
+    `);
+
+    const result = stmt.run(step, now, taskId, version);
+    const updated = result.changes > 0;
+
+    if (updated) {
+      logger.debug('Task current step updated', { taskId, step });
+    } else {
+      logger.warn('Task current step update failed (version mismatch)', { taskId, expectedVersion: version });
+    }
+
+    return updated;
+  }
+
+  /**
+   * 抢占任务（Worker 抢占机制）
+   */
+  async claimTask(taskId: string, workerId: string, version: number): Promise<boolean> {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE tasks
+      SET status = ?,
+          worker_id = ?,
+          started_at = ?,
+          version = version + 1,
+          updated_at = ?
+      WHERE id = ? AND version = ? AND status = ?
+    `);
+
+    const result = stmt.run(TaskStatus.RUNNING, workerId, now, now, taskId, version, TaskStatus.PENDING);
+    const claimed = result.changes > 0;
+
+    if (claimed) {
+      logger.info('Task claimed', { taskId, workerId });
+    } else {
+      logger.warn('Task claim failed (version mismatch or not pending)', { taskId, workerId, expectedVersion: version });
+    }
+
+    return claimed;
+  }
+
+  /**
+   * 增加重试计数（带乐观锁）
+   */
+  async incrementRetryCount(taskId: string, type: 'text' | 'image', version: number): Promise<boolean> {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE tasks
+      SET retry_count = retry_count + 1,
+          version = version + 1,
+          updated_at = ?
+      WHERE id = ? AND version = ?
+    `);
+
+    const result = stmt.run(now, taskId, version);
+    const updated = result.changes > 0;
+
+    if (updated) {
+      logger.debug('Task retry count incremented', { taskId, type });
+    } else {
+      logger.warn('Task retry count increment failed (version mismatch)', { taskId, type, expectedVersion: version });
+    }
+
+    return updated;
+  }
+
+  /**
+   * 保存状态快照（带乐观锁）
+   */
+  async saveStateSnapshot(taskId: string, snapshot: object, _version: number): Promise<boolean> {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO task_steps (id, task_id, step_type, status, output_data, created_at, updated_at)
+      VALUES (?, ?, ?, 'completed', ?, ?, ?)
+    `);
+
+    try {
+      stmt.run(`${taskId}_${Date.now()}`, taskId, 'state', JSON.stringify(snapshot), now, now);
+      logger.debug('State snapshot saved', { taskId });
+      return true;
+    } catch (error) {
+      logger.error('Failed to save state snapshot', { error: error as any, taskId });
+      return false;
+    }
+  }
+
+  /**
+   * 标记任务完成（带乐观锁）
+   */
+  async markAsCompleted(taskId: string, version: number): Promise<boolean> {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE tasks
+      SET status = ?,
+          completed_at = ?,
+          version = version + 1,
+          updated_at = ?
+      WHERE id = ? AND version = ?
+    `);
+
+    const result = stmt.run(TaskStatus.COMPLETED, now, now, taskId, version);
+    const updated = result.changes > 0;
+
+    if (updated) {
+      logger.info('Task marked as completed', { taskId });
+    } else {
+      logger.warn('Task mark as completed failed (version mismatch)', { taskId, expectedVersion: version });
+    }
+
+    return updated;
+  }
+
+  /**
+   * 标记任务失败（带乐观锁）
+   */
+  async markAsFailed(taskId: string, errorMessage: string, version: number): Promise<boolean> {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE tasks
+      SET status = ?,
+          error_message = ?,
+          completed_at = ?,
+          version = version + 1,
+          updated_at = ?
+      WHERE id = ? AND version = ?
+    `);
+
+    const result = stmt.run(TaskStatus.FAILED, errorMessage, now, now, taskId, version);
+    const updated = result.changes > 0;
+
+    if (updated) {
+      logger.info('Task marked as failed', { taskId, errorMessage });
+    } else {
+      logger.warn('Task mark as failed failed (version mismatch)', { taskId, expectedVersion: version });
+    }
+
+    return updated;
+  }
+
+  /**
+   * 释放 Worker 占用（用于任务崩溃时）
+   */
+  async releaseWorker(taskId: string, workerId: string, version: number): Promise<boolean> {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE tasks
+      SET status = ?,
+          worker_id = NULL,
+          version = version + 1,
+          updated_at = ?
+      WHERE id = ? AND version = ? AND worker_id = ?
+    `);
+
+    const result = stmt.run(TaskStatus.PENDING, now, taskId, version, workerId);
+    const released = result.changes > 0;
+
+    if (released) {
+      logger.info('Task worker released', { taskId, workerId });
+    } else {
+      logger.warn('Task worker release failed', { taskId, workerId, expectedVersion: version });
+    }
+
+    return released;
+  }
+
+  /**
+   * 软删除任务
+   */
+  async softDelete(taskId: string): Promise<boolean> {
+    // SQLite 不支持软删除，直接删除
+    return this.delete(taskId);
+  }
+
+  /**
+   * 永久删除任务
+   */
+  async delete(taskId: string): Promise<boolean> {
     const stmt = this.db.prepare('DELETE FROM tasks WHERE id = ?');
-    const result = stmt.run(id);
+    const result = stmt.run(taskId);
 
     return result.changes > 0;
+  }
+
+  /**
+   * 获取待处理任务队列（用于 Worker 获取任务）
+   */
+  async getPendingTasks(limit: number = 10): Promise<Task[]> {
+    const stmt = this.db.prepare(`
+      SELECT * FROM tasks
+      WHERE status = ?
+      ORDER BY priority DESC, created_at ASC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(TaskStatus.PENDING, limit) as any[];
+    return rows.map((row) => this.mapRowToTask(row));
+  }
+
+  /**
+   * 获取 Worker 的活跃任务
+   */
+  async getActiveTasksByWorker(workerId: string): Promise<Task[]> {
+    const stmt = this.db.prepare(`
+      SELECT * FROM tasks
+      WHERE status = ? AND worker_id = ?
+    `);
+
+    const rows = stmt.all(TaskStatus.RUNNING, workerId) as any[];
+    return rows.map((row) => this.mapRowToTask(row));
   }
 
   /**
@@ -411,7 +611,7 @@ export class SQLiteTaskRepository {
       stmt.get();
       return true;
     } catch (error) {
-      logger.error('Database health check failed', { error });
+      logger.error('Database health check failed', { error: error as any });
       return false;
     }
   }
@@ -430,26 +630,27 @@ export class SQLiteTaskRepository {
   private mapRowToTask(row: any): Task {
     return {
       id: row.id,
-      traceId: row.trace_id,
-      mode: row.mode,
-      type: row.type,
+      taskId: row.id,
+      mode: row.mode as any,
+      type: row.type as any,
       topic: row.topic,
       requirements: row.requirements,
       hardConstraints: row.hard_constraints
         ? JSON.parse(row.hard_constraints)
         : undefined,
       status: row.status,
+      priority: row.priority || 2,
+      version: row.version || 1,
+      textRetryCount: row.retry_count || 0,
+      imageRetryCount: 0,
+      targetAudience: 'general',
       currentStep: row.current_step,
       errorMessage: row.error_message,
-      retryCount: row.retry_count,
-      maxRetries: row.max_retries,
-      priority: row.priority,
-      version: row.version,
       workerId: row.worker_id,
-      startedAt: row.started_at,
-      completedAt: row.completed_at,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      startedAt: row.started_at ? new Date(row.started_at) : undefined,
+      completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
+      createdAt: new Date(row.created_at),
+      updatedAt: new Date(row.updated_at),
     };
   }
 }

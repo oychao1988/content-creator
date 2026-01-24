@@ -5,7 +5,6 @@
  * 数据不持久化，适合快速测试工作流
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 import type {
   Task,
@@ -14,7 +13,7 @@ import type {
   TaskListFilters,
   PaginatedResult,
 } from '../../domain/repositories/TaskRepository.js';
-import { TaskStatus, TaskType } from '../../domain/entities/Task.js';
+import { TaskStatus } from '../../domain/entities/Task.js';
 
 const logger = createLogger('Memory:TaskRepository');
 
@@ -33,26 +32,22 @@ export class MemoryTaskRepository {
    * 创建任务
    */
   async create(params: TaskCreateParams): Promise<Task> {
-    const now = new Date().toISOString();
+    const now = new Date();
 
     const task: Task = {
       id: params.id,
-      traceId: params.traceId || uuidv4(),
-      mode: params.mode,
-      type: params.type,
+      taskId: params.id,
+      mode: params.mode as any,
+      type: params.type as any,
       topic: params.topic,
       requirements: params.requirements,
       hardConstraints: params.hardConstraints,
       status: TaskStatus.PENDING,
-      currentStep: undefined,
-      errorMessage: undefined,
-      retryCount: 0,
-      maxRetries: params.maxRetries || 3,
-      priority: params.priority || 0,
+      priority: 2, // NORMAL
       version: 1,
-      workerId: undefined,
-      startedAt: undefined,
-      completedAt: undefined,
+      textRetryCount: 0,
+      imageRetryCount: 0,
+      targetAudience: 'general',
       createdAt: now,
       updatedAt: now,
     };
@@ -80,16 +75,15 @@ export class MemoryTaskRepository {
       throw new Error(`Task not found: ${id}`);
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
     const updatedTask: Task = {
       ...task,
-      ...(params.status !== undefined && { status: params.status }),
+      ...(params.status !== undefined && { status: params.status as any }),
       ...(params.currentStep !== undefined && { currentStep: params.currentStep }),
       ...(params.errorMessage !== undefined && { errorMessage: params.errorMessage }),
-      ...(params.retryCount !== undefined && { retryCount: params.retryCount }),
       ...(params.workerId !== undefined && { workerId: params.workerId }),
-      ...(params.startedAt !== undefined && { startedAt: params.startedAt }),
-      ...(params.completedAt !== undefined && { completedAt: params.completedAt }),
+      ...(params.startedAt !== undefined && { startedAt: params.startedAt ? new Date(params.startedAt) : undefined }),
+      ...(params.completedAt !== undefined && { completedAt: params.completedAt ? new Date(params.completedAt) : undefined }),
       ...(params.version !== undefined && { version: params.version }),
       updatedAt: now,
     };
@@ -115,7 +109,7 @@ export class MemoryTaskRepository {
       return false;
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
     const updatedTask: Task = {
       ...task,
       status,
@@ -133,10 +127,45 @@ export class MemoryTaskRepository {
   }
 
   /**
-   * 抢占任务（Worker 抢占机制）
+   * 抢占任务（Worker 抢占机制）- 按任务ID抢占
+   */
+  async claimTask(taskId: string, workerId: string, version: number): Promise<boolean> {
+    const task = this.tasks.get(taskId);
+    if (!task) {
+      return false;
+    }
+
+    // 检查版本号（乐观锁）
+    if (task.version !== version || task.status !== TaskStatus.PENDING) {
+      logger.warn('Task claim failed (version mismatch or not pending)', {
+        taskId,
+        expectedVersion: version,
+        actualVersion: task.version,
+        status: task.status
+      });
+      return false;
+    }
+
+    const now = new Date();
+    const updatedTask: Task = {
+      ...task,
+      status: TaskStatus.RUNNING,
+      workerId,
+      startedAt: now,
+      version: version + 1,
+      updatedAt: now,
+    };
+
+    this.tasks.set(taskId, updatedTask);
+    logger.info('Task claimed (memory)', { taskId, workerId });
+    return true;
+  }
+
+  /**
+   * 抢占任务（Worker 抢占机制）- 批量抢占
    */
   async claimForProcessing(workerId: string, limit: number = 1): Promise<Task[]> {
-    const now = new Date().toISOString();
+    const now = new Date();
     const claimedTasks: Task[] = [];
 
     // 找出待处理任务
@@ -161,7 +190,7 @@ export class MemoryTaskRepository {
       const updatedTask = await this.update(task.id, {
         status: TaskStatus.RUNNING,
         workerId,
-        startedAt: now,
+        startedAt: now.toISOString(),
       });
       claimedTasks.push(updatedTask);
     }
@@ -186,7 +215,7 @@ export class MemoryTaskRepository {
       taskId,
       step,
       state,
-      savedAt: new Date().toISOString(),
+      savedAt: new Date(),
     });
 
     logger.debug('State snapshot saved (memory)', { taskId, step });
@@ -295,7 +324,7 @@ export class MemoryTaskRepository {
       return false;
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
     const updatedTask: Task = {
       ...task,
       currentStep: step,
@@ -323,7 +352,7 @@ export class MemoryTaskRepository {
       return false;
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
     const updatedTask: Task = {
       ...task,
       status: TaskStatus.COMPLETED,
@@ -352,7 +381,7 @@ export class MemoryTaskRepository {
       return false;
     }
 
-    const now = new Date().toISOString();
+    const now = new Date();
     const updatedTask: Task = {
       ...task,
       status: TaskStatus.FAILED,

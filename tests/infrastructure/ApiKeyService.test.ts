@@ -25,14 +25,19 @@ vi.mock('../../src/infrastructure/database/PostgresTaskRepository.js', () => {
   };
 });
 
-// Mock BaseRepository to prevent pool initialization
+// Mock BaseRepository to prevent pool initialization and add query method
 vi.mock('../../src/infrastructure/database/BaseRepository.js', () => {
+  const mockQuery = vi.fn();
+
   return {
     BaseRepository: class {
       constructor(pool: any) {
         // Mock constructor
       }
+
+      query = mockQuery;
     },
+    __getMockQuery: () => mockQuery,
   };
 });
 
@@ -58,8 +63,8 @@ vi.mock('../../src/infrastructure/logging/logger.js', () => ({
   })),
 }));
 
-// Get the mock query function
-const getMockQuery = (await import('../../src/infrastructure/database/PostgresTaskRepository.js') as any)
+// Get the mock query function from BaseRepository
+const getMockQuery = (await import('../../src/infrastructure/database/BaseRepository.js') as any)
   .__getMockQuery;
 
 describe('ApiKeyService', () => {

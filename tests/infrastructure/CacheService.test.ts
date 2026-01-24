@@ -38,6 +38,7 @@ const { mockRedisInstance } = vi.hoisted(() => {
 vi.mock('../../src/infrastructure/redis/connection.js', () => ({
   redisClient: {
     getClient: vi.fn(() => Promise.resolve(mockRedisInstance)),
+    isEnabled: vi.fn(() => true),
   },
 }));
 

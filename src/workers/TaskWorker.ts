@@ -5,13 +5,13 @@
  */
 
 import { Worker, Job } from 'bullmq';
-import type { WorkerOptions } from 'bullmq';
+import { v4 as uuidv4 } from 'uuid';
 import { getRedisClient } from '../infrastructure/redis/connection.js';
-import { createTaskRepository } from '../infrastructure/database/index.js';
-import { createSimpleContentCreatorGraph, createInitialState } from '../domain/workflow/index.js';
+import { createTaskRepository, createResultRepository } from '../infrastructure/database/index.js';
+import { createContentCreatorGraph, createInitialState } from '../domain/workflow/index.js';
 import { createLogger } from '../infrastructure/logging/logger.js';
 import type { TaskJobData } from '../infrastructure/queue/TaskQueue.js';
-import type { Task } from '../domain/entities/Task.js';
+import { ExecutionMode } from '../domain/entities/Task.js';
 
 const logger = createLogger('TaskWorker');
 
@@ -91,13 +91,19 @@ export class TaskWorker {
 
     try {
       // 1. 抢占任务（使用乐观锁）
-      const claimed = await this.repository.claimForProcessing(
+      const task = await this.repository.findById(data.taskId);
+      if (!task) {
+        throw new Error(`Task not found: ${data.taskId}`);
+      }
+
+      const claimed = await this.repository.claimTask(
         data.taskId,
-        this.workerId
+        this.workerId,
+        task.version
       );
 
       if (!claimed) {
-        throw new Error(`Failed to claim task ${data.taskId}`);
+        throw new Error(`Failed to claim task ${data.taskId} (version mismatch or already claimed)`);
       }
 
       logger.info('Task claimed', { taskId: data.taskId });
@@ -106,12 +112,12 @@ export class TaskWorker {
       await job.updateProgress(10);
 
       // 2. 创建工作流图
-      const graph = createSimpleContentCreatorGraph();
+      const graph = createContentCreatorGraph();
 
       // 3. 创建初始状态
       const initialState = createInitialState({
         taskId: data.taskId,
-        mode: data.mode,
+        mode: data.mode === 'sync' ? ExecutionMode.SYNC : ExecutionMode.ASYNC,
         topic: data.topic,
         requirements: data.requirements,
         hardConstraints: data.hardConstraints,
@@ -131,6 +137,30 @@ export class TaskWorker {
       await job.updateProgress(90);
 
       // 5. 保存结果
+      const resultRepo = createResultRepository();
+
+      if (result.articleContent) {
+        await resultRepo.create({
+          taskId: data.taskId,
+          resultType: 'article',
+          content: result.articleContent,
+          metadata: {
+            wordCount: result.articleContent.length,
+          },
+        });
+      }
+
+      if (result.images && result.images.length > 0) {
+        for (const image of result.images) {
+          await resultRepo.create({
+            taskId: data.taskId,
+            resultType: 'image',
+            content: image.url,
+            metadata: image.metadata,
+          });
+        }
+      }
+
       await this.repository.update(data.taskId, {
         status: 'completed',
         completedAt: new Date().toISOString(),
@@ -252,7 +282,7 @@ export class TaskWorker {
 
     return {
       isRunning: this.worker.isRunning(),
-      isWaiting: this.worker.isWaiting(),
+      isWaiting: false,
     };
   }
 
@@ -316,6 +346,6 @@ export function createTaskWorker(
   workerId?: string,
   concurrency?: number
 ): TaskWorker {
-  const id = workerId || process.env.WORKER_ID || `worker-${process.pid}`;
+  const id = workerId || process.env.WORKER_ID || `worker-${uuidv4()}`;
   return new TaskWorker(id, concurrency);
 }

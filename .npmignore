@@ -1,0 +1,60 @@
+# 源代码和测试
+src/
+tests/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# 配置文件
+.env
+.env.*
+!.env.example
+*.config.js
+tsconfig.json
+.eslintrc*
+.prettierrc*
+
+# 开发文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 依赖
+node_modules/
+
+# 构建缓存
+.tsbuildinfo
+*.tsbuildinfo
+
+# 日志和数据
+logs/
+*.log
+data/
+*.db
+*.sqlite
+
+# 临时文件
+tmp/
+temp/
+*.tmp
+
+# 文档和示例（保留 docs/ 和 README.md）
+docs/archive/
+examples/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# 其他
+.npmrc
+.yarnrc
+.editorconfig
+pnpm-lock.yaml
+package-lock.json
+yarn.lock

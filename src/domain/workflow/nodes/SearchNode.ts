@@ -65,7 +65,7 @@ export class SearchNode extends BaseNode {
   /**
    * 从缓存获取搜索结果（可选）
    */
-  private async getCachedResult(query: string): Promise<SearchResultItem[] | null> {
+  private async getCachedResult(_query: string): Promise<SearchResultItem[] | null> {
     // TODO: 实现 Redis 缓存
     // 如果需要缓存，可以在这里添加 Redis 逻辑
     return null;
@@ -75,8 +75,8 @@ export class SearchNode extends BaseNode {
    * 保存搜索结果到缓存（可选）
    */
   private async setCachedResult(
-    query: string,
-    results: SearchResultItem[]
+    _query: string,
+    _results: SearchResultItem[]
   ): Promise<void> {
     // TODO: 实现 Redis 缓存
     // 如果需要缓存，可以在这里添加 Redis 逻辑

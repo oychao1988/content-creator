@@ -255,13 +255,13 @@ ${truncatedContent}
 
       // 提取代码块中的 JSON
       const codeBlockMatch = response.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (codeBlockMatch) {
+      if (codeBlockMatch && codeBlockMatch[1]) {
         jsonStr = codeBlockMatch[1];
       }
       // 提取花括号中的 JSON
       else {
         const braceMatch = response.match(/\{[\s\S]*\}/);
-        if (braceMatch) {
+        if (braceMatch && braceMatch[0]) {
           jsonStr = braceMatch[0];
         }
       }

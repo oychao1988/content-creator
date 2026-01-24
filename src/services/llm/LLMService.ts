@@ -142,11 +142,11 @@ export class LLMService {
 
       const maxTokens = typeof (request.maxTokens || this.maxTokens) === 'number'
         ? request.maxTokens || this.maxTokens
-        : parseInt(request.maxTokens || String(this.maxTokens));
+        : parseInt(String(request.maxTokens || this.maxTokens));
 
       const temperature = typeof (request.temperature ?? this.temperature) === 'number'
         ? request.temperature ?? this.temperature
-        : parseFloat(request.temperature ?? String(this.temperature));
+        : parseFloat(String(request.temperature ?? this.temperature));
 
       const response = await axios.post<ChatResponse>(
         `${this.baseURL}/v1/chat/completions`,
@@ -167,6 +167,9 @@ export class LLMService {
       );
 
       const choice = response.data.choices[0];
+      if (!choice) {
+        throw new Error('No choice in response');
+      }
       const content = choice.message.content;
       const usage = response.data.usage;
 
@@ -185,11 +188,9 @@ export class LLMService {
       }
 
       // 记录 LLM 调用指标
-      metricsService.recordLLMRequest(
-        this.modelName,
-        usage.totalTokens,
-        Date.now() - Date.now() // 这里应该是实际耗时，暂时设为 0
-      );
+      metricsService.recordLLMRequest(this.modelName, 'chat');
+      metricsService.recordLLMTokenUsage(this.modelName, 'prompt', usage.promptTokens);
+      metricsService.recordLLMTokenUsage(this.modelName, 'completion', usage.completionTokens);
 
       return {
         content,

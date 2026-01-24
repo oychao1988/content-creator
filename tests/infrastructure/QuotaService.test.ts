@@ -23,14 +23,19 @@ vi.mock('../../src/infrastructure/database/PostgresTaskRepository.js', () => {
   };
 });
 
-// Mock BaseRepository
+// Mock BaseRepository with query method
 vi.mock('../../src/infrastructure/database/BaseRepository.js', () => {
+  const mockQuery = vi.fn();
+
   return {
     BaseRepository: class {
       constructor(pool: any) {
         // Mock constructor
       }
+
+      query = mockQuery;
     },
+    __getMockQuery: () => mockQuery,
   };
 });
 
@@ -65,7 +70,7 @@ vi.mock('../../src/infrastructure/monitoring/MetricsService.js', () => ({
 }));
 
 // Get the mock query function
-const getMockQuery = (await import('../../src/infrastructure/database/PostgresTaskRepository.js') as any)
+const getMockQuery = (await import('../../src/infrastructure/database/BaseRepository.js') as any)
   .__getMockQuery;
 
 describe('QuotaService', () => {
@@ -92,7 +97,10 @@ describe('QuotaService', () => {
         last_reset_at: new Date(),
       };
 
-      mockQuery.mockResolvedValue({ rows: [mockRow] });
+      // resetIfNeed 先调用查询，然后 getUserQuota 再次查询
+      mockQuery
+        .mockResolvedValueOnce({ rows: [mockRow] }) // resetIfNeed
+        .mockResolvedValueOnce({ rows: [mockRow] }); // getUserQuota
 
       const result = await quotaService.getUserQuota('user-123');
 
@@ -113,7 +121,10 @@ describe('QuotaService', () => {
         last_reset_at: new Date(),
       };
 
-      mockQuery.mockResolvedValue({ rows: [mockRow] });
+      // resetIfNeed + getUserQuota
+      mockQuery
+        .mockResolvedValueOnce({ rows: [mockRow] })
+        .mockResolvedValueOnce({ rows: [mockRow] });
 
       const result = await quotaService.getUserQuota('user-123');
 
@@ -121,6 +132,7 @@ describe('QuotaService', () => {
     });
 
     it('应该在用户不存在时返回 null', async () => {
+      // resetIfNeed 查询返回空，表示用户不存在
       mockQuery.mockResolvedValue({ rows: [] });
 
       const result = await quotaService.getUserQuota('nonexistent-user');
@@ -147,7 +159,10 @@ describe('QuotaService', () => {
         last_reset_at: new Date(),
       };
 
-      mockQuery.mockResolvedValue({ rows: [mockRow] });
+      // resetIfNeed + getUserQuota
+      mockQuery
+        .mockResolvedValueOnce({ rows: [mockRow] })
+        .mockResolvedValueOnce({ rows: [mockRow] });
 
       const result = await quotaService.checkQuota('user-123', 50);
 
@@ -163,7 +178,10 @@ describe('QuotaService', () => {
         last_reset_at: new Date(),
       };
 
-      mockQuery.mockResolvedValue({ rows: [mockRow] });
+      // resetIfNeed + getUserQuota
+      mockQuery
+        .mockResolvedValueOnce({ rows: [mockRow] })
+        .mockResolvedValueOnce({ rows: [mockRow] });
 
       const result = await quotaService.checkQuota('user-123', 20);
 
@@ -179,7 +197,10 @@ describe('QuotaService', () => {
         last_reset_at: new Date(),
       };
 
-      mockQuery.mockResolvedValue({ rows: [mockRow] });
+      // resetIfNeed + getUserQuota
+      mockQuery
+        .mockResolvedValueOnce({ rows: [mockRow] })
+        .mockResolvedValueOnce({ rows: [mockRow] });
 
       const result = await quotaService.checkQuota('user-123');
 
@@ -189,8 +210,14 @@ describe('QuotaService', () => {
 
   describe('预留配额', () => {
     it('应该成功预留配额', async () => {
-      // Mock getUserQuota 内部的查询
-      mockQuery.mockResolvedValue({ rows: [{ user_id: 'user-123', quota_daily: 100, quota_used_today: 20, quota_reserved: 0, last_reset_at: new Date() }] });
+      // Mock getUserQuota 内部的查询 + UPDATE 返回值
+      const mockRow = { user_id: 'user-123', quota_daily: 100, quota_used_today: 20, quota_reserved: 0, last_reset_at: new Date(), version: 1 };
+      const updatedRow = { ...mockRow, quota_reserved: 10, version: 2 };
+      mockQuery
+        .mockResolvedValueOnce({ rows: [mockRow] }) // resetIfNeed
+        .mockResolvedValueOnce({ rows: [mockRow] }) // getUserQuota
+        .mockResolvedValueOnce({ rows: [updatedRow] }) // UPDATE 返回
+        .mockResolvedValueOnce({ rows: [] }); // INSERT reservation
 
       const result = await quotaService.reserveQuota('user-123', 10, 300);
 
@@ -199,7 +226,10 @@ describe('QuotaService', () => {
     });
 
     it('应该在配额不足时预留失败', async () => {
-      mockQuery.mockResolvedValue({ rows: [{ user_id: 'user-123', quota_daily: 100, quota_used_today: 95, quota_reserved: 5, last_reset_at: new Date() }] });
+      const mockRow = { user_id: 'user-123', quota_daily: 100, quota_used_today: 95, quota_reserved: 5, last_reset_at: new Date() };
+      mockQuery
+        .mockResolvedValueOnce({ rows: [mockRow] })
+        .mockResolvedValueOnce({ rows: [mockRow] });
 
       const result = await quotaService.reserveQuota('user-123', 10, 300);
 

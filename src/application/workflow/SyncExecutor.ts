@@ -17,7 +17,6 @@ import { createInitialState } from '../../domain/workflow/State.js';
 import type {
   ExecutorConfig,
   ExecutionResult,
-  ExecutionProgress,
   ProgressCallback,
 } from './types.js';
 
@@ -39,7 +38,7 @@ export class SyncExecutor {
   ) {
     this.taskRepo = taskRepo;
     this.config = {
-      databaseType: config.databaseType || 'postgres',
+      databaseType: config.databaseType || 'sqlite',
       timeout: config.timeout || 60000,         // 默认单步超时60秒
       totalTimeout: config.totalTimeout || 300000,  // 默认总超时5分钟
       maxRetries: config.maxRetries || 3,
@@ -207,6 +206,7 @@ export class SyncExecutor {
       id: taskId,
       userId: params.userId,
       mode: params.mode,
+      type: 'content-creator', // 添加默认类型
       topic: params.topic,
       requirements: params.requirements,
       hardConstraints: params.hardConstraints,
@@ -243,7 +243,8 @@ export class SyncExecutor {
       logger.info('Workflow invocation completed', {
         taskId,
         finalStep: result.currentStep,
-        hasContent: !!result.articleContent
+        hasContent: !!result.articleContent,
+        duration: Date.now() - startTime
       });
 
       return result;
@@ -378,52 +379,12 @@ export class SyncExecutor {
   }
 
   /**
-   * 通知进度更新
-   */
-  private notifyProgress(taskId: string, progress: ExecutionProgress): void {
-    const callbacks = this.progressCallbacks.get(taskId);
-    if (callbacks && callbacks.length > 0) {
-      logger.debug('Notifying progress', {
-        taskId,
-        callbackCount: callbacks.length,
-        progress
-      });
-
-      callbacks.forEach(callback => {
-        try {
-          callback(progress);
-        } catch (error) {
-          logger.error('Progress callback error', {
-            taskId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      });
-    }
-  }
-
-  /**
    * 计算进度百分比
    */
   private calculateProgress(currentStep: string): number {
     const steps = ['search', 'organize', 'write', 'check_text', 'generate_image', 'check_image'];
     const index = steps.indexOf(currentStep);
     return index >= 0 ? Math.round((index + 1) / steps.length * 100) : 0;
-  }
-
-  /**
-   * 获取步骤显示名称
-   */
-  private getStepDisplayName(step: string): string {
-    const displayNames: Record<string, string> = {
-      'search': '搜索资料',
-      'organize': '整理大纲',
-      'write': '撰写内容',
-      'check_text': '文本质检',
-      'generate_image': '生成配图',
-      'check_image': '配图质检',
-    };
-    return displayNames[step] || step;
   }
 
   /**

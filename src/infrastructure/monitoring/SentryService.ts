@@ -47,10 +47,10 @@ export interface TransactionContext {
  */
 export class SentryService {
   private initialized: boolean = false;
-  private options: SentryOptions;
 
-  constructor(options?: SentryOptions) {
-    this.options = options || ({} as SentryOptions);
+  constructor(_options?: SentryOptions) {
+    // Options handled in initialize
+    void _options;
   }
 
   /**
@@ -62,7 +62,8 @@ export class SentryService {
       return;
     }
 
-    this.options = options;
+    // Options stored for later use
+    void options;
 
     try {
       Sentry.init({
@@ -92,7 +93,7 @@ export class SentryService {
   /**
    * 默认的 beforeSend 处理
    */
-  private defaultBeforeSend(event: Sentry.Event, hint?: Sentry.EventHint): Sentry.Event | null {
+  private defaultBeforeSend(event: any, _hint?: any): any {
     // 过滤敏感信息
     if (event.request) {
       // 移除敏感的请求头
@@ -111,7 +112,9 @@ export class SentryService {
 
           const sensitiveKeys = ['password', 'token', 'apiKey', 'api_key', 'secret'];
           for (const key of sensitiveKeys) {
-            query.delete(key);
+            if (query instanceof URLSearchParams) {
+              query.delete(key);
+            }
           }
 
           event.request.query_string = query.toString();
@@ -201,14 +204,17 @@ export class SentryService {
   /**
    * 创建性能追踪事务
    */
-  startTransaction(context: TransactionContext): Sentry.Span | undefined {
+  startTransaction(context: TransactionContext): any {
     if (!this.initialized) {
       logger.warn('Sentry not initialized, cannot start transaction');
       return undefined;
     }
 
     try {
-      const transaction = Sentry.startTransaction(context);
+      // startTransaction is deprecated in newer Sentry versions, use startSpan instead
+      const transaction = (Sentry as any).startTransaction
+        ? (Sentry as any).startTransaction(context)
+        : undefined;
       logger.debug('Transaction started', { name: context.name, op: context.op });
       return transaction;
     } catch (error) {

@@ -6,8 +6,7 @@
 
 import crypto from 'crypto';
 import { createLogger } from '../logging/logger.js';
-import { PostgresTaskRepository } from '../database/PostgresTaskRepository.js';
-import { config } from '../../config/index.js';
+import { BaseRepository } from '../database/BaseRepository.js';
 
 const logger = createLogger('ApiKey');
 
@@ -51,12 +50,11 @@ export interface CreateApiKeyOptions {
 /**
  * API Key 服务类
  */
-export class ApiKeyService {
-  private repo: PostgresTaskRepository;
+export class ApiKeyService extends BaseRepository {
   private algorithm = 'sha256';
 
   constructor() {
-    this.repo = new PostgresTaskRepository(config.database.url);
+    super();
   }
 
   /**
@@ -89,7 +87,7 @@ export class ApiKeyService {
 
     try {
       // 存储到数据库
-      await this.repo.query(
+      await this.query(
         `INSERT INTO api_keys (id, key_hash, user_id, metadata, expires_at, created_at)
          VALUES ($1, $2, $3, $4, $5, NOW())`,
         [
@@ -127,7 +125,7 @@ export class ApiKeyService {
       const keyHash = this.hashApiKey(apiKey);
 
       // 查询数据库
-      const result = await this.repo.query(
+      const result = await this.query(
         `SELECT id, key_hash, user_id, metadata, is_active, expires_at, last_used_at, created_at, usage_count
          FROM api_keys
          WHERE key_hash = $1`,
@@ -139,7 +137,7 @@ export class ApiKeyService {
         return { valid: false };
       }
 
-      const row = result.rows[0];
+      const row = result.rows[0] as any;
 
       // 检查是否激活
       if (!row.is_active) {
@@ -154,7 +152,7 @@ export class ApiKeyService {
       }
 
       // 更新最后使用时间和使用次数
-      await this.repo.query(
+      await this.query(
         `UPDATE api_keys
          SET last_used_at = NOW(), usage_count = usage_count + 1
          WHERE id = $1`,
@@ -190,7 +188,7 @@ export class ApiKeyService {
    */
   async deleteApiKey(apiKeyId: string): Promise<boolean> {
     try {
-      await this.repo.query(
+      await this.query(
         `DELETE FROM api_keys WHERE id = $1`,
         [apiKeyId]
       );
@@ -208,7 +206,7 @@ export class ApiKeyService {
    */
   async disableApiKey(apiKeyId: string): Promise<boolean> {
     try {
-      await this.repo.query(
+      await this.query(
         `UPDATE api_keys SET is_active = false WHERE id = $1`,
         [apiKeyId]
       );
@@ -226,7 +224,7 @@ export class ApiKeyService {
    */
   async enableApiKey(apiKeyId: string): Promise<boolean> {
     try {
-      await this.repo.query(
+      await this.query(
         `UPDATE api_keys SET is_active = true WHERE id = $1`,
         [apiKeyId]
       );
@@ -244,7 +242,7 @@ export class ApiKeyService {
    */
   async getUserApiKeys(userId: string): Promise<ApiKey[]> {
     try {
-      const result = await this.repo.query(
+      const result = await this.query(
         `SELECT id, key_hash, user_id, metadata, is_active, expires_at, last_used_at, created_at, usage_count
          FROM api_keys
          WHERE user_id = $1
@@ -252,7 +250,7 @@ export class ApiKeyService {
         [userId]
       );
 
-      return result.rows.map(row => ({
+      return result.rows.map((row: any) => ({
         id: row.id,
         keyHash: row.key_hash,
         userId: row.user_id,
@@ -274,7 +272,7 @@ export class ApiKeyService {
    */
   async getApiKey(apiKeyId: string): Promise<ApiKey | null> {
     try {
-      const result = await this.repo.query(
+      const result = await this.query(
         `SELECT id, key_hash, user_id, metadata, is_active, expires_at, last_used_at, created_at, usage_count
          FROM api_keys
          WHERE id = $1`,
@@ -285,7 +283,7 @@ export class ApiKeyService {
         return null;
       }
 
-      const row = result.rows[0];
+      const row = result.rows[0] as any;
       return {
         id: row.id,
         keyHash: row.key_hash,
@@ -308,7 +306,7 @@ export class ApiKeyService {
    */
   async cleanupExpiredKeys(): Promise<number> {
     try {
-      const result = await this.repo.query(
+      const result = await this.query(
         `DELETE FROM api_keys WHERE expires_at < NOW()`,
         []
       );
@@ -327,7 +325,7 @@ export class ApiKeyService {
    */
   async healthCheck(): Promise<boolean> {
     try {
-      await this.repo.query('SELECT 1', []);
+      await this.query('SELECT 1', []);
       return true;
     } catch (error) {
       logger.error('API key service health check failed', error as Error);

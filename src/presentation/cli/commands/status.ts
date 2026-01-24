@@ -6,7 +6,7 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { PostgresTaskRepository } from '../../../infrastructure/database/PostgresTaskRepository.js';
+import { createTaskRepository } from '../../../infrastructure/database/index.js';
 import { getStatusText, formatDate, formatDuration, printSeparator } from '../utils/formatter.js';
 import { cleanupResources } from '../utils/cleanup.js';
 
@@ -14,7 +14,7 @@ export const statusCommand = new Command('status')
   .description('查询任务状态')
   .requiredOption('-t, --task-id <taskId>', '任务ID')
   .action(async (options) => {
-    const taskRepo = new PostgresTaskRepository();
+    const taskRepo = createTaskRepository();
 
     try {
       const task = await taskRepo.findById(options.taskId);

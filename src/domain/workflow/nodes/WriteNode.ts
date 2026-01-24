@@ -326,7 +326,7 @@ export class WriteNode extends BaseNode {
       const wordCount = state.previousContent.length;
       const minWords = state.hardConstraints.minWords || 500;
       const maxWords = state.hardConstraints.maxWords || 1000;
-      const { hasWordCountIssue, wordCountFeedback } = this.extractWordCountFeedback(state);
+      const { hasWordCountIssue } = this.extractWordCountFeedback(state);
 
       logContext.previousWordCount = wordCount;
       logContext.minRequired = minWords;

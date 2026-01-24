@@ -5,7 +5,7 @@
  * 收集任务、LLM、队列、系统等关键指标
  */
 
-import { register, Counter, Histogram, Gauge, Summary } from 'prom-client';
+import { register, Counter, Histogram, Gauge } from 'prom-client';
 import { createLogger } from '../logging/logger.js';
 
 const logger = createLogger('Metrics');
@@ -77,7 +77,6 @@ export class MetricsService {
 
   // 系统相关指标
   private memoryUsage: Gauge<string>;
-  private cpuUsage: Gauge<string>;
   private activeWorkers: Gauge<string>;
   private uptime: Gauge<string>;
 
@@ -253,11 +252,6 @@ export class MetricsService {
       name: 'memory_usage_bytes',
       help: 'Memory usage in bytes',
       labelNames: ['type'], // type: heap, rss, external
-    });
-
-    this.cpuUsage = new Gauge({
-      name: 'cpu_usage_percent',
-      help: 'CPU usage percentage',
     });
 
     this.activeWorkers = new Gauge({

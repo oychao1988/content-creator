@@ -15,8 +15,8 @@ const { mockHardRuleChecker, mockLLMEvaluator, mockCacheService, mockMetricsServ
     evaluate: vi.fn(),
   },
   mockCacheService: {
-    getCachedQualityCheckResult: vi.fn().mockResolvedValue(null),
-    setCachedQualityCheckResult: vi.fn().mockResolvedValue(undefined),
+    getCachedQualityCheck: vi.fn().mockResolvedValue(null),
+    setCachedQualityCheck: vi.fn().mockResolvedValue(undefined),
   },
   mockMetricsService: {
     recordCacheHit: vi.fn(),
@@ -430,7 +430,7 @@ describe('QualityCheckService', () => {
 
     it('应该正确计算通过率', async () => {
       // 禁用缓存确保每次都执行检查
-      mockCacheService.getCachedQualityCheckResult.mockResolvedValue(null);
+      mockCacheService.getCachedQualityCheck.mockResolvedValue(null);
 
       mockHardRuleChecker.check.mockReturnValue({
         passed: true,

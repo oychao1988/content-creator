@@ -260,7 +260,7 @@ describe('@e2e CLI Create Command', () => {
         '--tone', '友好',
         '--min-words', '200',
         '--max-words', '800',
-        '--mode', 'sync',
+        '--mode', 'async',
         '--priority', 'high',
       ]);
 

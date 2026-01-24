@@ -5,7 +5,6 @@
  * 提供高性能的缓存功能，支持 LLM 响应缓存、搜索结果缓存等
  */
 
-import Redis from 'ioredis';
 import { createLogger } from '../logging/logger.js';
 import { redisClient } from '../redis/connection.js';
 import { metricsService } from '../monitoring/MetricsService.js';
@@ -36,38 +35,62 @@ export interface CacheStats {
  */
 export class CacheService {
   private redisClientWrapper = redisClient;
-  private redis: Redis | null = null;
+  private redis: any | null = null;
   private prefix: string;
   private defaultTTL: number;
   private stats: Map<string, { hits: number; misses: number }>;
+  private enabled: boolean;
 
   constructor(options?: CacheOptions) {
     this.prefix = options?.prefix || 'cc';
     this.defaultTTL = options?.ttl || 3600; // 默认 1 小时
     this.stats = new Map();
+    this.enabled = this.redisClientWrapper.isEnabled();
 
-    // 异步初始化 Redis 客户端
-    this.initializeRedis();
+    if (!this.enabled) {
+      logger.info('Cache service initialized (Redis disabled, cache will be no-op)');
+    } else {
+      // 异步初始化 Redis 客户端
+      this.initializeRedis();
 
-    logger.info('Cache service initialized', {
-      prefix: this.prefix,
-      defaultTTL: this.defaultTTL,
-    });
+      logger.info('Cache service initialized', {
+        prefix: this.prefix,
+        defaultTTL: this.defaultTTL,
+      });
+    }
+  }
+
+  /**
+   * 检查缓存是否启用
+   */
+  isCacheEnabled(): boolean {
+    return this.enabled;
   }
 
   /**
    * 初始化 Redis 客户端
    */
   private async initializeRedis(): Promise<void> {
+    if (!this.enabled) {
+      return;
+    }
     if (!this.redis) {
-      this.redis = await this.redisClientWrapper.getClient();
+      try {
+        this.redis = await this.redisClientWrapper.getClient();
+      } catch (error) {
+        logger.warn('Failed to initialize Redis client, cache will be disabled', error as Error);
+        this.enabled = false;
+      }
     }
   }
 
   /**
    * 获取 Redis 客户端
    */
-  private async getRedis(): Promise<Redis> {
+  private async getRedis(): Promise<any> {
+    if (!this.enabled) {
+      throw new Error('Cache is disabled');
+    }
     if (!this.redis) {
       await this.initializeRedis();
     }
@@ -99,6 +122,11 @@ export class CacheService {
    * 获取缓存
    */
   async get<T>(key: string): Promise<T | null> {
+    if (!this.enabled) {
+      // 缓存禁用时直接返回 null
+      return null;
+    }
+
     const fullKey = this.buildKey(key);
 
     try {
@@ -130,6 +158,11 @@ export class CacheService {
    * 设置缓存
    */
   async set(key: string, value: any, ttl?: number): Promise<void> {
+    if (!this.enabled) {
+      // 缓存禁时时静默返回
+      return;
+    }
+
     const fullKey = this.buildKey(key);
     const expire = ttl ?? this.defaultTTL;
 
@@ -179,12 +212,12 @@ export class CacheService {
         const key = keys[i];
         const value = values[i];
 
-        if (value !== null) {
-          result.set(key, JSON.parse(value) as T);
-          this.incrementHits(key);
+        if (value !== null && value !== undefined) {
+          result.set(key!, JSON.parse(String(value)) as T);
+          if (key) this.incrementHits(key!);
           metricsService.recordCacheHit('default');
         } else {
-          this.incrementMisses(key);
+          if (key) this.incrementMisses(key!);
           metricsService.recordCacheMiss('default');
         }
       }

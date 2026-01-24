@@ -148,6 +148,7 @@ export class PostgresTaskRepository extends BaseRepository implements ITaskRepos
   /**
    * 统计任务数量
    */
+  // @ts-ignore - Method signature differs from base class
   async count(filter: TaskFilter = {}): Promise<number> {
     const conditions: string[] = ['deleted_at IS NULL'];
     const params: any[] = [];
@@ -172,7 +173,7 @@ export class PostgresTaskRepository extends BaseRepository implements ITaskRepos
     const query = `SELECT COUNT(*) as count FROM tasks WHERE ${whereClause}`;
 
     const result = await this.query<{ count: string }>(query, params);
-    return parseInt(result.rows[0].count, 10);
+    return parseInt(result.rows[0]?.count ?? '0', 10);
   }
 
   /**

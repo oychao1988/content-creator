@@ -7,7 +7,7 @@
 
 import crypto from 'crypto';
 import { HardRuleChecker, type HardConstraints, type HardRuleCheckResult } from './HardRuleChecker.js';
-import { LLMEvaluator, type LLMEvaluationResult, type EvaluateOptions } from './LLMEvaluator.js';
+import { LLMEvaluator, type LLMEvaluationResult } from './LLMEvaluator.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 import { cacheService } from '../../infrastructure/cache/CacheService.js';
 import { metricsService } from '../../infrastructure/monitoring/MetricsService.js';
@@ -128,7 +128,7 @@ export class QualityCheckService {
     if (this.enableCache && !options.skipCache) {
       try {
         const cacheKey = this.generateCacheKey(content, requirements, options);
-        const cached = await cacheService.getCachedQualityCheckResult(cacheKey);
+        const cached = await cacheService.getCachedQualityCheck(cacheKey);
 
         if (cached) {
           logger.debug('Quality check result retrieved from cache', { cacheKey });
@@ -179,7 +179,7 @@ export class QualityCheckService {
         // 缓存失败结果（异步，不等待）
         if (this.enableCache && !options.skipCache) {
           const cacheKey = this.generateCacheKey(content, requirements, options);
-          cacheService.setCachedQualityCheckResult(cacheKey, result).catch((error) => {
+          cacheService.setCachedQualityCheck(cacheKey, result).catch((error) => {
             logger.warn('Failed to cache quality check result', error);
           });
         }
@@ -240,7 +240,7 @@ export class QualityCheckService {
         // 缓存检查结果（异步，不等待）
         if (this.enableCache && !options.skipCache) {
           const cacheKey = this.generateCacheKey(content, requirements, options);
-          cacheService.setCachedQualityCheckResult(cacheKey, result).catch((error) => {
+          cacheService.setCachedQualityCheck(cacheKey, result).catch((error) => {
             logger.warn('Failed to cache quality check result', error);
           });
         }
@@ -266,7 +266,7 @@ export class QualityCheckService {
       // 缓存检查结果（异步，不等待）
       if (this.enableCache && !options.skipCache) {
         const cacheKey = this.generateCacheKey(content, requirements, options);
-        cacheService.setCachedQualityCheckResult(cacheKey, result).catch((error) => {
+        cacheService.setCachedQualityCheck(cacheKey, result).catch((error) => {
           logger.warn('Failed to cache quality check result', error);
         });
       }
