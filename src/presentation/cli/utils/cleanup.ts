@@ -11,7 +11,7 @@ import { closeLogger } from '../../../infrastructure/logging/logger.js';
  *
  * @param repositories - 需要关闭的 Repository 数组
  */
-export async function cleanupResources(...repositories: Array<{ close?: () => Promise<void> }>): Promise<void> {
+export async function cleanupResources(...repositories: Array<any>): Promise<void> {
   const errors: Array<Error> = [];
 
   // 1. 关闭所有 Repository 连接池

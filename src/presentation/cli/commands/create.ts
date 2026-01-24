@@ -154,11 +154,11 @@ export const createCommand = new Command('create')
 
         console.log(chalk.yellow.bold('\n💡 后续操作：'));
         console.log(chalk.white('1. 查询任务状态：'));
-        console.log(chalk.gray(`   pnpm cli result --task-id ${taskId}`));
+        console.log(chalk.gray(`   pnpm run cli result --task-id ${taskId}`));
         console.log(chalk.white('\n2. 确保 Worker 正在运行：'));
         console.log(chalk.gray('   pnpm run worker'));
-        console.log(chalk.white('\n3. 查看队列状态：'));
-        console.log(chalk.gray('   pnpm cli worker:status'));
+        console.log(chalk.white('\n3. 查看监控面板：'));
+        console.log(chalk.gray('   pnpm run monitor'));
         printSeparator();
 
         logger.info('Task created via async mode', {

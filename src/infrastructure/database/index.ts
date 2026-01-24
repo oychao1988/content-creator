@@ -7,6 +7,9 @@
 import { config } from '../../config/index.js';
 import { MemoryTaskRepository } from './MemoryTaskRepository.js';
 import { SQLiteTaskRepository } from './SQLiteTaskRepository.js';
+import { SQLiteResultRepository } from './SQLiteResultRepository.js';
+import { SQLiteQualityCheckRepository } from './SQLiteQualityCheckRepository.js';
+import { PostgresTaskRepository } from './PostgresTaskRepository.js';
 import { createLogger } from '../logging/logger.js';
 
 const logger = createLogger('Database:Factory');
@@ -54,9 +57,7 @@ export function createTaskRepository(pool?: any, dbPath?: string) {
 
   if (dbType === 'postgres') {
     // PostgreSQL 版本（需要数据库连接）
-    // 动态导入以避免在不需要时加载 pg
     try {
-      const { PostgresTaskRepository } = require('./PostgresTaskRepository.js');
       // 如果提供了 pool，使用提供的；否则由 BaseRepository 自动创建
       logger.info('Using PostgresTaskRepository');
       return new PostgresTaskRepository(pool);
@@ -79,29 +80,15 @@ export function createTaskRepository(pool?: any, dbPath?: string) {
  *
  * 根据配置自动选择合适的实现
  */
-export function createResultRepository(pool?: any, dbPath?: string) {
+export function createResultRepository(_pool?: any, dbPath?: string) {
   const dbType = config.database.type;
 
   logger.info('Creating Result Repository', { databaseType: dbType });
 
-  if (dbType === 'postgres') {
-    try {
-      const { PostgresResultRepository } = require('./ResultRepository.js');
-      logger.info('Using PostgresResultRepository');
-      return new PostgresResultRepository(pool);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.warn('PostgreSQL initialization failed, falling back to SQLite for results', { error: errorMsg });
-      console.warn('⚠️  PostgreSQL not available, falling back to SQLite result repository');
-    }
-  }
-
-  if (dbType === 'sqlite' || true) {
-    // 默认使用 SQLiteResultRepository
-    logger.info('Using SQLiteResultRepository', { dbPath: dbPath || './data/content-creator.db' });
-    const { SQLiteResultRepository } = require('./SQLiteResultRepository.js');
-    return new SQLiteResultRepository(dbPath);
-  }
+  // 注意：PostgreSQL 版本需要动态导入，但目前只支持 SQLite
+  // 默认使用 SQLiteResultRepository
+  logger.info('Using SQLiteResultRepository', { dbPath: dbPath || './data/content-creator.db' });
+  return new SQLiteResultRepository(dbPath);
 }
 
 /**
@@ -109,29 +96,15 @@ export function createResultRepository(pool?: any, dbPath?: string) {
  *
  * 根据配置自动选择合适的实现
  */
-export function createQualityCheckRepository(pool?: any, dbPath?: string) {
+export function createQualityCheckRepository(_pool?: any, dbPath?: string) {
   const dbType = config.database.type;
 
   logger.info('Creating Quality Check Repository', { databaseType: dbType });
 
-  if (dbType === 'postgres') {
-    try {
-      const { PostgresQualityCheckRepository } = require('./PostgresQualityCheckRepository.js');
-      logger.info('Using PostgresQualityCheckRepository');
-      return new PostgresQualityCheckRepository(pool);
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      logger.warn('PostgreSQL initialization failed, falling back to SQLite for quality checks', { error: errorMsg });
-      console.warn('⚠️  PostgreSQL not available, falling back to SQLite quality check repository');
-    }
-  }
-
-  if (dbType === 'sqlite' || true) {
-    // 默认使用 SQLiteQualityCheckRepository
-    logger.info('Using SQLiteQualityCheckRepository', { dbPath: dbPath || './data/content-creator.db' });
-    const { SQLiteQualityCheckRepository } = require('./SQLiteQualityCheckRepository.js');
-    return new SQLiteQualityCheckRepository(dbPath);
-  }
+  // 注意：PostgreSQL 版本需要动态导入，但目前只支持 SQLite
+  // 默认使用 SQLiteQualityCheckRepository
+  logger.info('Using SQLiteQualityCheckRepository', { dbPath: dbPath || './data/content-creator.db' });
+  return new SQLiteQualityCheckRepository(dbPath);
 }
 
 // 导出具体的 Repository 类（可选使用）

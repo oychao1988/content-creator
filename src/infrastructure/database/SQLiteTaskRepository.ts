@@ -617,6 +617,79 @@ export class SQLiteTaskRepository {
   }
 
   /**
+   * 查询任务列表（支持过滤和分页）
+   */
+  async findMany(filter?: any, pagination?: any): Promise<Task[]> {
+    const { limit = 50, offset = 0 } = pagination || {};
+
+    const conditions: string[] = [];
+    const values: any[] = [];
+
+    if (filter?.status) {
+      conditions.push('status = ?');
+      values.push(filter.status);
+    }
+    if (filter?.userId) {
+      conditions.push('id = ?'); // SQLite 没有 userId 字段，使用 id
+      values.push(filter.userId);
+    }
+    if (filter?.mode) {
+      conditions.push('mode = ?');
+      values.push(filter.mode);
+    }
+
+    const whereClause = conditions.length > 0
+      ? 'WHERE ' + conditions.join(' AND ')
+      : '';
+
+    const stmt = this.db.prepare(`
+      SELECT * FROM tasks
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `);
+
+    const rows = stmt.all(...values, limit, offset) as any[];
+    return rows.map((row) => this.mapRowToTask(row));
+  }
+
+  /**
+   * 统计任务数量
+   */
+  async count(filter?: any): Promise<number> {
+    const conditions: string[] = [];
+    const values: any[] = [];
+
+    if (filter?.status) {
+      conditions.push('status = ?');
+      values.push(filter.status);
+    }
+    if (filter?.userId) {
+      conditions.push('id = ?');
+      values.push(filter.userId);
+    }
+    if (filter?.mode) {
+      conditions.push('mode = ?');
+      values.push(filter.mode);
+    }
+
+    const whereClause = conditions.length > 0
+      ? 'WHERE ' + conditions.join(' AND ')
+      : '';
+
+    const stmt = this.db.prepare(`SELECT COUNT(*) as count FROM tasks ${whereClause}`);
+    const result = stmt.get(...values) as { count: number };
+    return result.count;
+  }
+
+  /**
+   * 根据 userId 查询任务列表
+   */
+  async findByUserId(userId: string, pagination?: any): Promise<Task[]> {
+    return this.findMany({ userId }, pagination);
+  }
+
+  /**
    * 关闭数据库连接
    */
   close(): void {

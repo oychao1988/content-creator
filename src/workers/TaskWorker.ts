@@ -89,9 +89,11 @@ export class TaskWorker {
     // 更新任务进度
     await job.updateProgress(0);
 
+    let task: Awaited<ReturnType<typeof this.repository.findById>> | null = null;
+
     try {
       // 1. 抢占任务（使用乐观锁）
-      const task = await this.repository.findById(data.taskId);
+      task = await this.repository.findById(data.taskId);
       if (!task) {
         throw new Error(`Task not found: ${data.taskId}`);
       }
@@ -105,6 +107,9 @@ export class TaskWorker {
       if (!claimed) {
         throw new Error(`Failed to claim task ${data.taskId} (version mismatch or already claimed)`);
       }
+
+      // 更新任务版本号（claimTask 会将版本号 +1）
+      task.version = task.version + 1;
 
       logger.info('Task claimed', { taskId: data.taskId });
 
@@ -161,16 +166,7 @@ export class TaskWorker {
         }
       }
 
-      await this.repository.update(data.taskId, {
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-        result: {
-          articleContent: result.articleContent,
-          searchResults: result.searchResults,
-          organizedInfo: result.organizedInfo,
-          images: result.images,
-        },
-      });
+      await this.repository.markAsCompleted(data.taskId, task.version);
 
       const duration = Date.now() - startTime;
 
@@ -200,11 +196,9 @@ export class TaskWorker {
 
       // 保存错误信息
       try {
-        await this.repository.update(data.taskId, {
-          status: 'failed',
-          error: errorMessage,
-          completedAt: new Date().toISOString(),
-        });
+        if (task) {
+          await this.repository.markAsFailed(data.taskId, errorMessage, task.version);
+        }
       } catch (updateError) {
         logger.error('Failed to update task error status', updateError as Error, {
           taskId: data.taskId,

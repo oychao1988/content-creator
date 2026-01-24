@@ -126,7 +126,17 @@ export class TaskScheduler {
       };
 
       // 4. 保存到数据库
-      await this.repository.create(task as Task);
+      await this.repository.create({
+        id: task.id!,
+        traceId: undefined,
+        mode: task.mode!,
+        type: (task.type as any) || 'article',
+        topic: task.topic!,
+        requirements: task.requirements!,
+        hardConstraints: task.hardConstraints,
+        priority: task.priority,
+        maxRetries: 3,
+      });
 
       logger.info('Task created', {
         taskId,
@@ -263,10 +273,8 @@ export class TaskScheduler {
         return false;
       }
 
-      await this.repository.update(taskId, {
-        status: 'cancelled',
-        updatedAt: new Date().toISOString(),
-      });
+      // 使用 delete 方法标记任务为已取消
+      await this.repository.delete(taskId);
 
       logger.info('Task cancelled', { taskId });
 

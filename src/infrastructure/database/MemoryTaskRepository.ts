@@ -397,6 +397,59 @@ export class MemoryTaskRepository {
   }
 
   /**
+   * 查询任务列表（支持过滤和分页）
+   */
+  async findMany(filter?: any, pagination?: any): Promise<Task[]> {
+    const { limit = 50, offset = 0 } = pagination || {};
+
+    let tasks = Array.from(this.tasks.values());
+
+    // 应用过滤
+    if (filter?.status) {
+      tasks = tasks.filter((t) => t.status === filter.status);
+    }
+    if (filter?.userId) {
+      tasks = tasks.filter((t) => t.id === filter.userId); // Memory 没有 userId 字段
+    }
+    if (filter?.mode) {
+      tasks = tasks.filter((t) => t.mode === filter.mode);
+    }
+
+    // 按创建时间倒序排序
+    tasks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // 分页
+    return tasks.slice(offset, offset + limit);
+  }
+
+  /**
+   * 统计任务数量
+   */
+  async count(filter?: any): Promise<number> {
+    let tasks = Array.from(this.tasks.values());
+
+    // 应用过滤
+    if (filter?.status) {
+      tasks = tasks.filter((t) => t.status === filter.status);
+    }
+    if (filter?.userId) {
+      tasks = tasks.filter((t) => t.id === filter.userId);
+    }
+    if (filter?.mode) {
+      tasks = tasks.filter((t) => t.mode === filter.mode);
+    }
+
+    return tasks.length;
+  }
+
+  /**
+   * 根据 userId 查询任务列表
+   */
+  async findByUserId(userId: string, pagination?: any): Promise<Task[]> {
+    return this.findMany({ userId }, pagination);
+  }
+
+  /**
    * 获取统计信息
    */
   getStats() {
