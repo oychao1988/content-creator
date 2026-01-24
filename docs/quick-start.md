@@ -200,6 +200,53 @@ npm test
 
 ## 📊 监控和调试
 
+### Monitor 监控面板
+
+**启动监控面板**:
+
+```bash
+# 启动 Bull Board 监控面板
+pnpm run monitor
+```
+
+**访问地址**: http://localhost:3000/admin/queues
+
+**主要功能**:
+- 查看任务队列状态（等待中、执行中、已完成、失败）
+- 手动重试失败的任务
+- 查看任务详情和日志
+- 暂停/恢复队列
+- 清空队列
+
+**测试 API 端点**:
+
+```bash
+# 健康检查
+curl http://localhost:3000/health
+
+# 获取队列统计
+curl http://localhost:3000/api/stats
+```
+
+**完整使用流程**:
+
+```bash
+# 1. 启动监控面板（终端 1）
+pnpm run monitor
+
+# 2. 启动 Worker（终端 2）
+pnpm run worker
+
+# 3. 创建异步任务（终端 3）
+pnpm run cli create \
+  --topic "Web 开发最佳实践" \
+  --requirements "写一篇关于现代 Web 开发的文章" \
+  --mode async
+
+# 4. 在浏览器中访问 http://localhost:3000/admin/queues
+#    观察任务从创建到完成的整个流程
+```
+
 ### 查看日志
 
 系统使用 Winston 日志，输出到控制台和文件。

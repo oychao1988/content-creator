@@ -492,14 +492,44 @@ pnpm run cli result --task-id <task-id>
 pnpm run cli cancel --task-id <task-id>
 ```
 
-#### 监控面板
+#### 监控面板 (Monitor)
+
+**启动监控面板**:
 
 ```bash
-# 启动 BullMQ 监控面板
+# 启动 BullMQ 监控面板（默认端口 3000）
 pnpm run monitor
 
-# 访问 http://localhost:3000/admin/queues
+# 指定端口启动
+npx tsx src/presentation/monitor-cli.ts start -p 3001
 ```
+
+**访问 Web UI**:
+
+启动后访问: `http://localhost:3000/admin/queues`
+
+**功能特性**:
+- ✅ **实时队列监控** - 查看待处理、执行中、已完成、失败的任务
+- ✅ **任务详情查看** - 查看任务数据、堆栈跟踪、执行日志
+- ✅ **任务管理** - 手动重试失败任务、删除任务、暂停/恢复队列
+- ✅ **队列统计** - 实时查看队列状态和任务数量
+- ✅ **错误追踪** - 查看失败任务的原因和错误信息
+
+**API 端点**:
+
+```bash
+# 健康检查
+curl http://localhost:3000/health
+
+# 获取队列统计
+curl http://localhost:3000/api/stats
+```
+
+**使用场景**:
+- 监控异步任务执行状态
+- 查看失败任务并进行手动重试
+- 清理堆积的任务队列
+- 调试任务执行问题
 
 ---
 
@@ -738,10 +768,51 @@ pnpm run verify-env
 
 # 数据库状态
 pnpm run db:status
-
-# 监控面板
-pnpm run monitor
 ```
+
+### Monitor 监控面板
+
+**启动监控面板**:
+
+```bash
+# 启动 Monitor（推荐）
+pnpm run monitor
+
+# 指定端口
+npx tsx src/presentation/monitor-cli.ts start -p 3001
+```
+
+**访问地址**:
+- Web UI: http://localhost:3000/admin/queues
+- 健康检查: http://localhost:3000/health
+- 队列统计: http://localhost:3000/api/stats
+
+**监控面板功能**:
+
+1. **队列概览**
+   - Waiting（等待中）- 待处理的任务
+   - Active（执行中）- 正在执行的任务
+   - Completed（已完成）- 成功完成的任务
+   - Failed（失败）- 执行失败的任务
+   - Delayed（延迟）- 延迟执行的任务
+
+2. **任务操作**
+   - 查看任务详情（点击任务 ID）
+   - 重试失败任务（Retry 按钮）
+   - 删除任务（Delete 按钮）
+   - 查看任务日志和堆栈跟踪
+
+3. **队列管理**
+   - 暂停队列（Pause 按钮）
+   - 恢复队列（Resume 按钮）
+   - 清空队列（Clean all 按钮）
+   - 批量操作失败任务
+
+4. **性能监控**
+   - 任务处理速度
+   - 队列堆积情况
+   - 失败率统计
+   - Worker 性能指标
 
 ### 日志查看
 
@@ -751,6 +822,9 @@ tail -f ./logs/app.log
 
 # 搜索错误日志
 grep "error" ./logs/app.log
+
+# 查看 Monitor 日志
+tail -f ./logs/app.log | grep BullBoard
 ```
 
 ### 性能指标
@@ -760,6 +834,21 @@ grep "error" ./logs/app.log
 - API 调用频率
 - 缓存命中率
 - 错误率
+
+### 常用监控组合
+
+```bash
+# 终端 1: 启动监控面板
+pnpm run monitor
+
+# 终端 2: 启动 Worker
+pnpm run worker
+
+# 终端 3: 创建异步任务
+pnpm run cli create --topic "测试" --requirements "测试描述" --mode async
+
+# 浏览器: 访问 http://localhost:3000/admin/queues 观察任务执行
+```
 
 ---
 
