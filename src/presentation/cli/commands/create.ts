@@ -324,6 +324,9 @@ export const createCommand = new Command('create')
           duration: result.duration
         });
       } // 结束同步模式的 else 块
+
+      // 任务完成后明确退出
+      process.exit(0);
     } catch (error) {
       logger.error('Create command failed', error as Error);
       console.error(chalk.red(`\n❌ 错误: ${error instanceof Error ? error.message : String(error)}`));
@@ -340,15 +343,7 @@ export const createCommand = new Command('create')
       if (resources.servicesInitialized) {
         logger.debug('Starting resource cleanup...');
 
-        // 1. 关闭 Logger（必须在最后）
-        try {
-          await closeLogger();
-          logger.debug('Logger closed');
-        } catch (error) {
-          console.log('Error closing logger (ignored):', error);
-        }
-
-        // 2. 停止 Metrics 服务定时器
+        // 1. 停止 Metrics 服务定时器
         try {
           metricsService.stop();
           console.log('Metrics service stopped');
@@ -356,7 +351,7 @@ export const createCommand = new Command('create')
           console.log('Error stopping metrics service (ignored):', error);
         }
 
-        // 3. 关闭 Redis 客户端连接
+        // 2. 关闭 Redis 客户端连接
         try {
           await redisClient.disconnect();
           console.log('Redis client disconnected');
@@ -364,7 +359,7 @@ export const createCommand = new Command('create')
           console.log('Error disconnecting Redis (ignored):', error);
         }
 
-        // 4. 关闭 PostgreSQL 连接池
+        // 3. 关闭 PostgreSQL 连接池
         try {
           if (resources.pool) {
             await resources.pool.end();
@@ -372,6 +367,14 @@ export const createCommand = new Command('create')
           }
         } catch (error) {
           console.log('Error closing PostgreSQL pool (ignored):', error);
+        }
+
+        // 4. 关闭 Logger（必须在最后）
+        try {
+          await closeLogger();
+          logger.debug('Logger closed');
+        } catch (error) {
+          console.log('Error closing logger (ignored):', error);
         }
 
         console.log('Resource cleanup completed');
