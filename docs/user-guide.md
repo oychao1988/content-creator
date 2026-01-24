@@ -415,6 +415,65 @@ pnpm run cli create \
 
 ### 其他 CLI 命令
 
+#### 查看历史任务列表
+
+```bash
+# 查看最近 20 个任务（默认）
+pnpm run cli list
+
+# 查看最近 10 个任务
+pnpm run cli list --limit 10
+
+# 只查看已完成的任务
+pnpm run cli list --status completed
+
+# 只查看失败的任务
+pnpm run cli list --status failed
+
+# 只查看异步任务
+pnpm run cli list --mode async
+
+# 查看第 2 页（分页）
+pnpm run cli list --offset 20
+
+# 以 JSON 格式输出（方便脚本处理）
+pnpm run cli list --json
+```
+
+**显示内容**：
+- 任务主题
+- 任务 ID
+- 当前状态（等待中/运行中/已完成/失败）
+- 执行模式（同步/异步）
+- 创建时间（智能相对时间）
+- 执行耗时
+- 错误信息（如果失败）
+
+#### 重新执行任务
+
+```bash
+# 重新执行单个任务
+pnpm run cli retry --task-id <任务ID>
+
+# 批量重新执行所有等待任务
+pnpm run cli retry --all
+
+# 批量重新执行失败任务
+pnpm run cli retry --all --status failed
+
+# 模拟运行（预览但不实际执行）
+pnpm run cli retry --all --dry-run
+
+# 限制处理数量
+pnpm run cli retry --all --limit 5
+```
+
+**使用场景**：
+- Worker 临时停止导致任务堆积
+- 任务创建时队列不可用
+- 失败的任务需要重试
+- 想要重新执行历史任务
+
 #### 查看任务状态
 
 ```bash
@@ -497,7 +556,20 @@ pnpm run cli create \
 
 ### Q4: 如何查看任务历史？
 
-查询数据库：
+使用 CLI 命令：
+
+```bash
+# 查看最近的任务
+pnpm run cli list
+
+# 查看失败的任务
+pnpm run cli list --status failed
+
+# 以 JSON 格式输出
+pnpm run cli list --json
+```
+
+或直接查询数据库：
 
 ```bash
 # 使用 psql
