@@ -9,3 +9,12 @@ dist/
 docs/DOCUMENTATION-ANALYSIS.md
 docs/SOURCE-CODE-ANALYSIS.md
 docs/archive/
+
+# 编译缓存
+.claude/tsc-cache/
+
+# SQLite 数据库文件
+data/content-creator.db*
+
+# 测试结果文件
+test-results/
