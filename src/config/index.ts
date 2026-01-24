@@ -62,7 +62,7 @@ const envSchema = z.object({
   S3_BUCKET: z.string().optional(),
 
   // Worker 配置
-  WORKER_ID: z.string().default('worker-1'),
+  WORKER_ID: z.string().optional(),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(2),
 
   // 日志配置

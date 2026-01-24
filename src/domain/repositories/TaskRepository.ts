@@ -17,6 +17,7 @@ export interface CreateTaskInput {
   id?: string;
   userId?: string;
   mode: ExecutionMode;
+  type?: string;
   topic: string;
   requirements: string;
   hardConstraints?: {

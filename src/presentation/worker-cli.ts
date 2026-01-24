@@ -54,6 +54,10 @@ program
       logger.info('Worker running, press Ctrl+C to stop');
     } catch (error) {
       logger.error('Failed to start worker', error as Error);
+      console.error('Detailed error:', error);
+      if (error instanceof Error) {
+        console.error('Stack trace:', error.stack);
+      }
       process.exit(1);
     }
   });

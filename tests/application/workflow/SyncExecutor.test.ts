@@ -182,17 +182,24 @@ describe('SyncExecutor - 数据库配置集成测试', () => {
 
       // 动态导入
       const { SyncExecutor } = await import('../../../src/application/workflow/SyncExecutor.js');
-      const { createTaskRepository } = await import('../../../src/infrastructure/database/index.js');
       const { SQLiteTaskRepository } = await import('../../../src/infrastructure/database/SQLiteTaskRepository.js');
+      const { SQLiteResultRepository } = await import('../../../src/infrastructure/database/SQLiteResultRepository.js');
+      const { SQLiteQualityCheckRepository } = await import('../../../src/infrastructure/database/SQLiteQualityCheckRepository.js');
 
       // 创建 SQLite Repository
       const taskRepo = new SQLiteTaskRepository(':memory:');
+      const resultRepo = new SQLiteResultRepository(':memory:');
+      const qualityCheckRepo = new SQLiteQualityCheckRepository(':memory:');
 
       // 创建 SyncExecutor
       const executor = new SyncExecutor(taskRepo, {
         databaseType: 'sqlite',
         enableLogging: true,
       });
+
+      // 设置结果和质量检查仓储
+      executor.setResultRepository(resultRepo);
+      executor.setQualityCheckRepository(qualityCheckRepo);
 
       try {
         // 验证配置

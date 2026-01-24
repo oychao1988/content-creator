@@ -131,9 +131,22 @@ export class RedisClient {
       });
 
       // 等待连接就绪
-      await this.client.ready;
+      await new Promise((resolve, reject) => {
+        this.client.on('ready', () => {
+          logger.info('Redis connection established');
+          resolve(this.client);
+        });
 
-      logger.info('Redis connection established');
+        this.client.on('error', (err: Error) => {
+          reject(err);
+        });
+
+        // 超时处理
+        setTimeout(() => {
+          reject(new Error('Redis connection timeout'));
+        }, config.redis.connectTimeout);
+      });
+
       return this.client;
     } catch (error) {
       this.isConnecting = false;
