@@ -65,11 +65,11 @@ cp .env.example .env
 pnpm run db:migrate
 
 # 5. 创建第一个任务
-pnpm run cli:create \
+pnpm run cli create \
   --topic "人工智能的未来" \
   --requirements "写一篇关于 AI 未来发展的文章" \
   --audience "技术爱好者" \
-  --sync
+  --mode sync
 ```
 
 ### Docker 快速启动
@@ -294,7 +294,7 @@ pnpm run start
 #### 创建内容创作任务
 
 ```bash
-pnpm run cli:create \
+pnpm run cli create \
   --topic "文章主题" \
   --requirements "创作要求" \
   --audience "目标受众" \
@@ -302,7 +302,7 @@ pnpm run cli:create \
   --keywords "关键词1,关键词2" \
   --min-words 500 \
   --max-words 2000 \
-  --sync
+  --mode sync
 ```
 
 #### 参数说明
@@ -324,7 +324,7 @@ pnpm run cli:create \
 ##### 示例 1：技术博客文章
 
 ```bash
-pnpm run cli:create \
+pnpm run cli create \
   --topic "TypeScript 5.0 新特性解析" \
   --requirements "详细介绍 TypeScript 5.0 的新特性、改进和迁移指南" \
   --audience "前端开发者" \
@@ -332,13 +332,13 @@ pnpm run cli:create \
   --keywords "TypeScript,JavaScript,前端开发" \
   --min-words 1000 \
   --max-words 2000 \
-  --sync
+  --mode sync
 ```
 
 ##### 示例 2：生活类文章
 
 ```bash
-pnpm run cli:create \
+pnpm run cli create \
   --topic "健康生活方式建议" \
   --requirements "提供实用的健康生活建议，包括饮食、运动和睡眠" \
   --audience "普通读者" \
@@ -346,7 +346,7 @@ pnpm run cli:create \
   --keywords "健康,生活,养生" \
   --min-words 800 \
   --max-words 1200 \
-  --sync
+  --mode sync
 ```
 
 ### 方式二：程序化调用
@@ -394,20 +394,20 @@ console.log('配图 URL:', result.finalState.imageUrl);
 ### create - 创建任务
 
 ```bash
-pnpm run cli:create [options]
+pnpm run cli create [options]
 ```
 
 **示例**:
 
 ```bash
 # 同步执行（推荐用于测试）
-pnpm run cli:create \
+pnpm run cli create \
   --topic "主题" \
   --requirements "要求" \
-  --sync
+  --mode sync
 
 # 异步执行（推荐用于生产）
-pnpm run cli:create \
+pnpm run cli create \
   --topic "主题" \
   --requirements "要求" \
   --mode async
@@ -418,13 +418,19 @@ pnpm run cli:create \
 #### 查看任务状态
 
 ```bash
-pnpm run cli:status <task-id>
+pnpm run cli status --task-id <task-id>
+```
+
+#### 获取任务结果
+
+```bash
+pnpm run cli result --task-id <task-id>
 ```
 
 #### 取消任务
 
 ```bash
-pnpm run cli:cancel <task-id>
+pnpm run cli cancel --task-id <task-id>
 ```
 
 #### 监控面板
@@ -459,10 +465,10 @@ pnpm run monitor
 ```bash
 # 创建批量脚本
 for topic in "AI发展" "区块链应用" "云计算趋势"; do
-  pnpm run cli:create \
+  pnpm run cli create \
     --topic "$topic" \
     --requirements "详细介绍 $topic" \
-    --sync
+    --mode sync
 done
 ```
 
@@ -481,10 +487,10 @@ LLM_TEMPERATURE=0.3           # 降低创造性（更确定性）
 创建任务时设置：
 
 ```bash
-pnpm run cli:create \
+pnpm run cli create \
   --topic "主题" \
-  --requirements "要求" \
-  --no-search  # 如果支持
+  --requirements "要求"
+  # --no-search  # 暂不支持此参数
 ```
 
 或在代码中设置 `useCache: true` 强制使用缓存。

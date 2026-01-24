@@ -698,16 +698,16 @@ function formatDate(date: Date): string {
 
 ```bash
 # 创建任务(同步执行)
-pnpm run cli create -t "AI技术发展" -r "写一篇技术文章" --sync
+pnpm run cli create -t "AI技术发展" -r "写一篇技术文章" --mode sync
 
 # 查询任务状态
-pnpm run cli status -t xxx-xxx-xxx
+pnpm run cli status --task-id xxx-xxx-xxx
 
 # 获取任务结果
-pnpm run cli result -t xxx-xxx-xxx
+pnpm run cli result --task-id xxx-xxx-xxx
 
 # 取消任务
-pnpm run cli cancel -t xxx-xxx-xxx
+pnpm run cli cancel --task-id xxx-xxx-xxx
 ```
 
 ---
