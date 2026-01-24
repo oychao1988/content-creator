@@ -160,7 +160,7 @@ class Config {
     console.log('Configuration Loaded Successfully');
     console.log('========================================');
     console.log(`Environment: ${this.env.NODE_ENV}`);
-    console.log(`Worker ID: ${this.env.WORKER_ID}`);
+    console.log(`Worker ID: ${this.env.WORKER_ID || 'Not set (auto-generating UUID)'}`);
     console.log(`Concurrency: ${this.env.WORKER_CONCURRENCY}`);
     console.log(`Database Type: ${this.databaseType}`);
 
