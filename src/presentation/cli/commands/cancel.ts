@@ -55,6 +55,7 @@ export const cancelCommand = new Command('cancel')
         success
       });
 
+      process.exit(0);
     } catch (error) {
       spinner.fail('操作失败');
       logger.error('Cancel command failed', error as Error);
