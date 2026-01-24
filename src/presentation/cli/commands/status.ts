@@ -71,6 +71,7 @@ export const statusCommand = new Command('status')
 
       // 清理资源并正常退出
       await cleanupResources(taskRepo);
+      process.exit(0);
 
     } catch (error) {
       console.error(chalk.red(`❌ 错误: ${error instanceof Error ? error.message : String(error)}`));

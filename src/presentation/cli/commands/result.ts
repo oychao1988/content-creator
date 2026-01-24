@@ -44,14 +44,14 @@ export const resultCommand = new Command('result')
       if (task.status !== 'completed') {
         console.log(chalk.yellow(`⚠️  任务尚未完成，当前状态: ${getStatusText(task.status)}`));
         await cleanupResources(taskRepo, resultRepo);
-        return;
+        process.exit(0);
       }
 
       // JSON格式输出
       if (options.format === 'json') {
         console.log(JSON.stringify(task, null, 2));
         await cleanupResources(taskRepo, resultRepo);
-        return;
+        process.exit(0);
       }
 
       // 文本格式输出
@@ -140,6 +140,7 @@ export const resultCommand = new Command('result')
 
       // 清理所有资源
       await cleanupResources(taskRepo, resultRepo);
+      process.exit(0);
 
     } catch (error) {
       console.error(chalk.red(`❌ 错误: ${error instanceof Error ? error.message : String(error)}`));
