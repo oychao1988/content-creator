@@ -109,11 +109,17 @@ AI 技术的发展经历了多个重要阶段。从早期的符号主义到连�
 
 AI 技术的应用已经渗透到我们生活的方方面面。在医疗领域，AI 辅助诊断系统能够帮助医生更准确地发现疾病。在金融领域，AI 算法能够预测市场趋势，辅助投资决策。在制造业，AI 驱动的机器人正在取代人工完成重复性工作。这些技术的快速发展正在改变各行各业的运作方式。
 
-## 技术发展的未来趋势
+## 技术发展的挑战与机遇
 
-随着 AI 技术的快速发展，我们也面临着诸多挑战。多模态 AI、通用人工智能（AGI）等前沿技术正在孕育更大的突破。技术发展的同时，我们也需要关注伦理和安全问题，确保 AI 造福人类。
+随着 AI 技术的快速发展，我们也面临着诸多挑战。多模态 AI、通用人工智能（AGI）等前沿技术正在孕育更大的突破。技术发展的同时，我们也需要关注伦理和安全问题，确保 AI 造福人类。人工智能的发展将带来新的就业机会，同时也需要我们不断提升技能以适应变化。
 
-AI 技术的发展将为社会带来巨大的变革，我们正处于这个激动人心的时代。未来的技术发展将更加注重可解释性、安全性和普惠性，让 AI 真正成为人类的助手。`;
+## 技术发展的未来展望
+
+AI 技术的发展将为社会带来巨大的变革，我们正处于这个激动人心的时代。未来的技术发展将更加注重可解释性、安全性和普惠性，让 AI 真正成为人类的助手。人工智能将在教育、医疗、交通、环保等领域发挥更大的作用，为人类创造更美好的未来。
+
+## 结语
+
+总之，AI 技术的发展是不可逆转的趋势。我们需要积极拥抱这一变革，同时保持理性和谨慎，确保人工智能技术的发展能够真正造福人类社会。通过不断学习和创新，我们将迎来更加智能化的未来。`;
 }
 
 /**
@@ -152,7 +158,7 @@ export class MockLLMService {
   constructor(private mockResponse?: string) {}
 
   async chat(request: { messages: Array<{ role: string; content: string }>; taskId: string; stepName: string }) {
-    const response = this.mockResponse || this.generateMockResponse(request.stepName);
+    const response = this.mockResponse || this.generateMockResponse(request.stepName, request.taskId);
 
     return {
       content: response,
@@ -165,7 +171,7 @@ export class MockLLMService {
     };
   }
 
-  private generateMockResponse(stepName: string): string {
+  private generateMockResponse(stepName: string, taskId: string): string {
     switch (stepName) {
       case 'organize':
         return JSON.stringify(createMockOrganizedInfo());
@@ -174,6 +180,30 @@ export class MockLLMService {
         return createMockArticleContent();
 
       case 'checkText':
+        // 在测试中，当 taskId 包含 'test-fail' 时返回质检失败，用于测试重试逻辑
+        if (taskId && taskId.includes('test-fail')) {
+          return JSON.stringify({
+            score: 4.5, // 低于测试环境的及格分数（5分）
+            passed: false,
+            hardConstraintsPassed: false,
+            details: {
+              hardRules: {
+                passed: false,
+                wordCount: { passed: false, wordCount: 400, minRequired: 500, maxRequired: 1000 },
+                keywords: { passed: false, found: ['AI'], required: ['AI', '人工智能', '技术发展'] },
+                structure: { passed: false, checks: { hasTitle: true, hasIntro: false, hasBody: true, hasConclusion: true } }
+              },
+              softScores: {
+                relevance: { score: 4, reason: '内容与主题相关性较低' },
+                coherence: { score: 5, reason: '逻辑较为混乱' },
+                completeness: { score: 4, reason: '结构不完整' },
+                readability: { score: 5, reason: '语言表达较差' }
+              }
+            },
+            fixSuggestions: ['增加字数', '补充关键词', '优化结构']
+          });
+        }
+        // 其他情况返回通过的响应
         return JSON.stringify({
           score: 8.5,
           passed: true,

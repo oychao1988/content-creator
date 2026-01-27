@@ -63,6 +63,20 @@ archive/phases/
 ### 实施文档
 实施指南和问题分析文档。
 
+### 项目报告
+项目执行过程中的计划和总结文档：
+
+| 文档 | 说明 |
+|------|------|
+| `CLI-INSTRUCTIONS-UPDATE-PLAN.md` | CLI 指令更新计划 |
+| `CLI-INSTRUCTIONS-UPDATE-SUMMARY.md` | CLI 指令更新总结 |
+| `MONITOR-TEST-PLAN.md` | 监控测试计划 |
+| `MONITOR-TEST-SUMMARY.md` | 监控测试总结 |
+| `async-task-flow-PLAN.md` | 异步任务流计划 |
+| `async-task-flow-SUMMARY.md` | 异步任务流总结 |
+| `npm-publish-PLAN.md` | NPM 发布计划 |
+| `文档结构整理.md` | 项目文档结构整理说明 |
+
 ---
 
 ## 📖 文档使用指南
@@ -110,8 +124,9 @@ docs/
     ├── phases/                        # 阶段文档
     ├── sessions/                      # 会话总结
     └── reports/                       # 各类报告
-        ├── test-reports/
-        └── progress-reports/
+        ├── test-reports/               # 测试报告
+        ├── progress-reports/           # 进度报告
+        └── project-reports/            # 项目报告（计划和总结）
 ```
 
 ---

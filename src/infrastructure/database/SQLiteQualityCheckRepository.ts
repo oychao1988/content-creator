@@ -36,24 +36,35 @@ export class SQLiteQualityCheckRepository implements IQualityCheckRepository {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const details = params.details ? JSON.stringify(params.details) : null;
-    const fixSuggestions = (params.fixSuggestions && params.fixSuggestions.length > 0)
+    // 确保所有参数都是 SQLite 支持的类型
+    const safeDetails = (params.details && Object.keys(params.details).length > 0)
+      ? JSON.stringify(params.details)
+      : null;
+
+    const safeFixSuggestions = (params.fixSuggestions && Array.isArray(params.fixSuggestions) && params.fixSuggestions.length > 0)
       ? JSON.stringify(params.fixSuggestions)
       : null;
+
+    // 确保 score 是有效的数字
+    const safeScore = Number.isFinite(params.score) ? params.score : 0;
+
+    // 确保 passed 和 hardConstraintsPassed 是布尔值
+    const safePassed = Boolean(params.passed);
+    const safeHardConstraintsPassed = Boolean(params.hardConstraintsPassed);
 
     try {
       stmt.run(
         uuidv4(), // 使用 UUID v4 确保唯一性
-        params.taskId,
-        params.checkType,
-        params.score,
-        params.passed,
-        params.hardConstraintsPassed,
-        details,
-        fixSuggestions,
-        params.rubricVersion || null,
-        params.modelName || null,
-        params.promptHash || null,
+        String(params.taskId || ''), // 确保 taskId 是字符串
+        String(params.checkType || 'text'), // 确保 checkType 是字符串
+        safeScore,
+        safePassed,
+        safeHardConstraintsPassed,
+        safeDetails,
+        safeFixSuggestions,
+        params.rubricVersion ? String(params.rubricVersion) : null,
+        params.modelName ? String(params.modelName) : null,
+        params.promptHash ? String(params.promptHash) : null,
         now
       );
 

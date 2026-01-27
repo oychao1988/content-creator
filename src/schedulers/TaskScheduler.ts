@@ -274,7 +274,7 @@ export class TaskScheduler {
       }
 
       // 使用 delete 方法标记任务为已取消
-      await this.repository.delete(taskId);
+      await this.repository.update(task.id, { status: 'cancelled' });
 
       logger.info('Task cancelled', { taskId });
 

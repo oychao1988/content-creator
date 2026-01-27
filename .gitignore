@@ -18,3 +18,4 @@ data/content-creator.db*
 
 # 测试结果文件
 test-results/
+test-full-output.log

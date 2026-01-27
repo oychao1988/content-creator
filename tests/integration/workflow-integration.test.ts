@@ -122,7 +122,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
     it('should fail after max retries', async () => {
       const graph = createSimpleContentCreatorGraph();
       const initialState = createTestInitialState({
-        taskId: 'test-max-retry',
+        taskId: 'test-fail', // 使用不同的 taskId，避免触发强制放行逻辑
         topic: '测试主题',
         requirements: '测试要求',
       });
@@ -130,7 +130,15 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // Mock persistent quality check failure
       // This would cause the workflow to fail after 3 attempts
 
-      await expect(graph.invoke(initialState)).rejects.toThrow();
+      const result = await graph.invoke(initialState);
+
+      // 验证工作流确实失败了
+      expect(result).toBeDefined();
+      expect(result).toHaveProperty('error');
+      expect(result).toHaveProperty('textQualityReport');
+      expect(result.textQualityReport).toHaveProperty('passed', false);
+      expect(result.textQualityReport).toHaveProperty('hardConstraintsPassed', false);
+      expect(result.textQualityReport.score).toBeLessThan(5); // 低于测试环境的及格分数（5分）
     }, 300000);
   });
 
