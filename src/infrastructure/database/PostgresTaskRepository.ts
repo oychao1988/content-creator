@@ -350,6 +350,74 @@ export class PostgresTaskRepository extends BaseRepository implements ITaskRepos
   }
 
   /**
+   * 更新任务
+   */
+  async update(taskId: string, params: any): Promise<Task> {
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (params.status !== undefined) {
+      updates.push(`status = $${paramIndex++}`);
+      values.push(params.status);
+    }
+
+    if (params.currentStep !== undefined) {
+      updates.push(`current_step = $${paramIndex++}`);
+      values.push(params.currentStep);
+    }
+
+    if (params.errorMessage !== undefined) {
+      updates.push(`error_message = $${paramIndex++}`);
+      values.push(params.errorMessage);
+    }
+
+    if (params.retryCount !== undefined) {
+      updates.push(`text_retry_count = $${paramIndex++}`);
+      values.push(params.retryCount);
+    }
+
+    if (params.workerId !== undefined) {
+      updates.push(`worker_id = $${paramIndex++}`);
+      values.push(params.workerId);
+    }
+
+    if (params.startedAt !== undefined) {
+      updates.push(`started_at = $${paramIndex++}`);
+      values.push(params.startedAt);
+    }
+
+    if (params.completedAt !== undefined) {
+      updates.push(`completed_at = $${paramIndex++}`);
+      values.push(params.completedAt);
+    }
+
+    if (params.version !== undefined) {
+      updates.push(`version = $${paramIndex++}`);
+      values.push(params.version);
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+
+    const query = `
+      UPDATE tasks
+      SET ${updates.join(', ')}
+      WHERE task_id = $${paramIndex++} AND deleted_at IS NULL
+      RETURNING *
+    `;
+
+    values.push(taskId);
+
+    const result = await this.query<any>(query, values);
+
+    if (result.rows.length === 0) {
+      throw new Error(`Task with id ${taskId} not found`);
+    }
+
+    return this.mapToTask(result.rows[0]);
+  }
+
+  /**
    * 永久删除任务
    */
   async delete(taskId: string): Promise<boolean> {

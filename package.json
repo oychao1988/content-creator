@@ -1,8 +1,11 @@
 {
   "name": "llm-content-creator",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "AI 驱动的内容创作工具库",
   "main": "dist/index.js",
+  "bin": {
+    "content-creator": "dist/presentation/cli/index.js"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -60,7 +63,10 @@
     "worker": "tsx src/presentation/worker-cli.ts start",
     "worker:dev": "tsx watch src/presentation/worker-cli.ts start",
     "monitor": "tsx src/presentation/monitor-cli.ts start",
-    "scheduler": "tsx src/presentation/scheduler-cli.ts"
+    "scheduler": "tsx src/presentation/scheduler-cli.ts",
+    "example:ts": "tsx examples/workflow-example.ts",
+    "example:js": "node examples/workflow-example.js",
+    "example:py": "python3 examples/workflow-example.py"
   },
   "keywords": [
     "ai",
