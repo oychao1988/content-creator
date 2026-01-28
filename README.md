@@ -20,6 +20,86 @@
 
 ---
 
+## 📦 作为 npm 包使用
+
+本项目已发布到 npm，可以直接作为库使用：
+
+```bash
+# 安装
+npm install llm-content-creator
+
+# 或使用 pnpm
+pnpm add llm-content-creator
+```
+
+### 基本使用
+
+```typescript
+import { createSyncExecutor } from 'llm-content-creator/executor';
+import { createTaskRepository } from 'llm-content-creator/database';
+
+// 创建执行器
+const executor = createSyncExecutor(createTaskRepository());
+
+// 执行内容创作工作流
+const result = await executor.execute({
+  mode: 'sync',
+  topic: 'AI 技术的发展',
+  requirements: '写一篇关于 AI 技术发展趋势的文章',
+  targetAudience: '技术爱好者',
+  tone: '专业',
+});
+```
+
+### 使用多工作流系统
+
+```typescript
+import {
+  WorkflowRegistry,
+  createWorkflowGraph,
+  createWorkflowState,
+} from 'llm-content-creator/workflow';
+
+// 使用翻译工作流
+const graph = createWorkflowGraph('translation');
+const state = createWorkflowState('translation', {
+  taskId: 'task-123',
+  mode: 'sync',
+  sourceText: 'Hello World',
+  sourceLanguage: 'en',
+  targetLanguage: 'zh',
+});
+
+const result = await graph.invoke(state);
+console.log(result.translatedText); // 输出: 你好世界
+```
+
+### CLI 命令
+
+安装后可以使用全局 CLI 命令：
+
+```bash
+# 列出所有工作流
+content-creator workflow list
+
+# 创建内容创作任务
+content-creator create --topic "AI 技术" --requirements "写一篇文章" --mode sync
+
+# 创建翻译任务
+content-creator create --type translation \
+  --source-text "Hello World" \
+  --source-language en \
+  --target-language zh \
+  --mode sync
+```
+
+更多使用示例，请查看：
+- [工作流扩展架构设计](./docs/workflow-extension-design.md)
+- [翻译工作流使用指南](./docs/translation-workflow-guide.md)
+- [示例代码](./src/examples/)
+
+---
+
 ## 📚 文档导航
 
 完整文档请访问：**[📖 文档中心](./docs/README.md)**
@@ -337,5 +417,6 @@ MIT License
 
 ---
 
-**最后更新**：2026-01-22
-**项目状态**：✅ 核心功能已完成
+**最后更新**：2026-01-28
+**当前版本**：v0.2.0
+**项目状态**：✅ 核心功能已完成，支持多工作流扩展
