@@ -31,6 +31,7 @@ export const createCommand = new Command('create')
   .option('--tone <tone>', '语气风格', '专业')
   .option('--min-words <number>', '最小字数', '500')
   .option('--max-words <number>', '最大字数', '2000')
+  .option('--type <type>', '工作流类型 (content-creator|translation)', 'content-creator')
   .option('--mode <mode>', '执行模式 (sync|async)', 'sync')
   .option('--priority <priority>', '优先级 (low|normal|high|urgent)', 'normal')
   .option('--sync', '同步执行（等待结果）', false)
@@ -48,9 +49,26 @@ export const createCommand = new Command('create')
         process.exit(1);
       }
 
+      // 验证工作流类型（目前只支持 content-creator）
+      const supportedTypes = ['content-creator'];
+      if (!supportedTypes.includes(options.type)) {
+        console.error(chalk.red(`❌ 错误: 不支持的工作流类型 "${options.type}"`));
+        console.log();
+        console.log(chalk.white('💡 支持的工作流类型：'));
+        supportedTypes.forEach((type) => {
+          console.log(chalk.gray(`  - ${type}`));
+        });
+        console.log();
+        console.log(chalk.white('使用以下命令查看所有可用的工作流：'));
+        console.log(chalk.gray('  pnpm run cli workflow list'));
+        console.log();
+        process.exit(1);
+      }
+
       // 显示任务信息
       console.log(chalk.blue.bold('\n🚀 创建内容创作任务'));
       printSeparator();
+      console.log(chalk.white(`工作流类型: ${options.type}`));
       console.log(chalk.white(`主题: ${options.topic}`));
       console.log(chalk.white(`要求: ${options.requirements}`));
       console.log(chalk.white(`受众: ${options.audience}`));
@@ -61,6 +79,12 @@ export const createCommand = new Command('create')
       console.log(chalk.white(`执行模式: ${options.mode}`));
       console.log(chalk.white(`优先级: ${options.priority}`));
       printSeparator();
+
+      // 如果不是 content-creator 类型，显示提示
+      if (options.type !== 'content-creator') {
+        console.log(chalk.yellow(`⚠️  注意: 工作流类型 "${options.type}" 当前仅支持通过程序接口调用`));
+        console.log(chalk.yellow('    CLI 将使用 content-creator 工作流执行任务\n'));
+      }
     } catch (error) {
       console.error(chalk.red(`\n❌ 参数验证失败: ${error instanceof Error ? error.message : String(error)}`));
       process.exit(1);

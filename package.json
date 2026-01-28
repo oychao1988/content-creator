@@ -64,7 +64,8 @@
     "worker:dev": "tsx watch src/presentation/worker-cli.ts start",
     "monitor": "tsx src/presentation/monitor-cli.ts start",
     "scheduler": "tsx src/presentation/scheduler-cli.ts",
-    "example:ts": "tsx examples/workflow-example.ts",
+    "example:ts": "tsx src/examples/workflow-adapter-demo.ts",
+    "example:translation": "tsx src/examples/translation-workflow-example.ts",
     "example:js": "node examples/workflow-example.js",
     "example:py": "python3 examples/workflow-example.py"
   },

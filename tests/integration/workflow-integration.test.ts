@@ -26,26 +26,31 @@ import {
   MockImageService,
 } from '../utils/test-helpers.js';
 
+// 延迟函数，用于避免 API 频率限制
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+let lastTestTime = Date.now();
+
 describe('ContentCreator Workflow Integration Tests', () => {
-  let mockSearchService: MockSearchService;
-  let mockLLMService: MockLLMService;
-  let mockImageService: MockImageService;
+  beforeEach(async () => {
+    // 清除所有 mocks
+    vi.clearAllMocks();
 
-  beforeEach(() => {
-    // Setup all mocks
-    mockSearchService = new MockSearchService();
-    mockLLMService = new MockLLMService();
-    mockImageService = new MockImageService();
-
-    // Mock services here if needed
-    // vi.doMock('../../src/services/search/SearchService.js', () => ({
-    //   searchService: mockSearchService,
-    // }));
+    // 确保每个测试之间至少有 3 秒的间隔
+    const timeSinceLastTest = Date.now() - lastTestTime;
+    if (timeSinceLastTest < 3000) {
+      await delay(3000 - timeSinceLastTest);
+    }
   });
 
-  afterEach(() => {
-    // Clear all mocks
-    vi.clearAllMocks();
+  afterEach(async () => {
+    // 记录测试完成时间
+    lastTestTime = Date.now();
+
+    // 每个测试后添加延迟，避免 API 频率限制
+    await delay(5000);
   });
 
   describe('Full Workflow Execution', () => {
@@ -223,25 +228,29 @@ describe('ContentCreator Workflow Integration Tests', () => {
   });
 
   describe('Concurrent Execution', () => {
-    it('should handle multiple concurrent workflows', async () => {
+    it('should handle multiple workflows (executed serially to avoid rate limiting)', async () => {
       const graph = createSimpleContentCreatorGraph();
 
       const initialState1 = createTestInitialState({
-        taskId: 'test-concurrent-1',
+        taskId: `test-serial-1-${Date.now()}`,
       });
       const initialState2 = createTestInitialState({
-        taskId: 'test-concurrent-2',
+        taskId: `test-serial-2-${Date.now()}`,
       });
       const initialState3 = createTestInitialState({
-        taskId: 'test-concurrent-3',
+        taskId: `test-serial-3-${Date.now()}`,
       });
 
-      // Execute multiple workflows concurrently
-      const results = await Promise.all([
-        graph.invoke(initialState1),
-        graph.invoke(initialState2),
-        graph.invoke(initialState3),
-      ]);
+      // Execute multiple workflows serially to avoid API rate limiting
+      const result1 = await graph.invoke(initialState1);
+      await delay(3000); // Wait between requests
+
+      const result2 = await graph.invoke(initialState2);
+      await delay(3000);
+
+      const result3 = await graph.invoke(initialState3);
+
+      const results = [result1, result2, result3];
 
       // Verify all completed
       expect(results).toHaveLength(3);

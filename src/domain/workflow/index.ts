@@ -7,6 +7,18 @@
 // State
 export * from './State.js';
 
+// Base Workflow State（新架构）
+export * from './BaseWorkflowState.js';
+
+// Workflow Registry（新架构）
+export * from './WorkflowRegistry.js';
+
+// Adapters（新架构）
+export * from './adapters/ContentCreatorWorkflowAdapter.js';
+
+// Examples（新架构）
+export * from './examples/TranslationWorkflow.js';
+
 // Nodes
 export * from './nodes/BaseNode.js';
 export * from './nodes/index.js';

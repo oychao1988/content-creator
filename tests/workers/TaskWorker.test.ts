@@ -26,6 +26,20 @@ vi.mock('../../src/infrastructure/database/index.js', () => ({
 
 // Mock 工作流
 vi.mock('../../src/domain/workflow/index.js', () => ({
+  WorkflowRegistry: {
+    getInstance: vi.fn(() => ({
+      createGraph: vi.fn(() => ({
+        invoke: vi.fn().mockResolvedValue({
+          taskId: 'test-1',
+          articleContent: 'Test content',
+          searchResults: [],
+          organizedInfo: 'Test info',
+        }),
+      })),
+      createState: vi.fn((params) => params),
+      validateParams: vi.fn(() => true),
+    })),
+  },
   createSimpleContentCreatorGraph: vi.fn(() => ({
     invoke: vi.fn().mockResolvedValue({
       taskId: 'test-1',

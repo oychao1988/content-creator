@@ -149,7 +149,7 @@ export class LLMService {
         : parseFloat(String(request.temperature ?? this.temperature));
 
       const response = await axios.post<ChatResponse>(
-        `${this.baseURL}/v1/chat/completions`,
+        `${this.baseURL}/chat/completions`,
         {
           model: request.model || this.modelName,
           messages: request.messages,

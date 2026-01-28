@@ -1,50 +1,74 @@
 /**
  * Content Creator Workflow 使用示例 (JavaScript 版本)
  *
- * 演示如何使用内容创作者工作流
+ * 演示如何使用新的工作流注册表架构
  */
 
 import {
-  createContentCreatorGraph,
-  createSimpleContentCreatorGraph,
-  createInitialState,
-  ExecutionMode,
+  WorkflowRegistry,
+  registerWorkflow,
+  createWorkflowGraph,
+  createWorkflowState,
+  listWorkflows,
 } from '../dist/domain/workflow/index.js';
+import { contentCreatorWorkflowAdapter } from '../dist/domain/workflow/adapters/ContentCreatorWorkflowAdapter.js';
+import { translationWorkflowFactory } from '../dist/domain/workflow/examples/TranslationWorkflow.js';
+import { ExecutionMode } from '../dist/domain/entities/Task.js';
 import { createLogger } from '../dist/infrastructure/logging/logger.js';
 
 const logger = createLogger('WorkflowExampleJS');
 
 /**
- * 示例 1：基本使用
+ * 示例 1：工作流注册表基本使用
  */
-async function example1_BasicUsage() {
-  console.log('\n=== 示例 1：基本使用 ===\n');
+async function example1_WorkflowRegistry() {
+  console.log('\n=== 示例 1：工作流注册表基本使用 ===\n');
 
-  // 1. 创建工作流图
-  const graph = createSimpleContentCreatorGraph();
+  // 注册工作流
+  registerWorkflow(contentCreatorWorkflowAdapter);
+  registerWorkflow(translationWorkflowFactory);
 
-  // 2. 创建初始状态
-  const initialState = createInitialState({
-    taskId: `task-${Date.now()}`,
-    mode: ExecutionMode.SYNC,
-    topic: 'AI 技术的发展趋势',
-    requirements: '写一篇关于 AI 技术发展趋势的文章，重点讨论大语言模型',
-    hardConstraints: {
-      minWords: 500,
-      maxWords: 1000,
-      keywords: ['AI', '人工智能', '技术发展'],
-    },
-  });
+  // 列出所有已注册的工作流
+  const workflows = listWorkflows();
+  console.log('已注册的工作流:');
+  for (const workflow of workflows) {
+    console.log(`  - ${workflow.name} (${workflow.type})`);
+    console.log(`    版本: ${workflow.version}`);
+    console.log(`    描述: ${workflow.description}`);
+  }
+}
 
-  console.log('初始状态:', {
-    taskId: initialState.taskId,
-    topic: initialState.topic,
-    mode: initialState.mode,
-  });
+/**
+ * 示例 2：使用内容创作工作流
+ */
+async function example2_ContentCreatorWorkflow() {
+  console.log('\n=== 示例 2：使用内容创作工作流 ===\n');
 
-  // 3. 执行工作流
   try {
-    const result = await graph.invoke(initialState);
+    // 创建工作流状态
+    const state = createWorkflowState('content-creator', {
+      taskId: `content-task-${Date.now()}`,
+      mode: ExecutionMode.SYNC,
+      topic: 'AI 技术的发展趋势',
+      requirements: '写一篇关于 AI 技术发展趋势的文章，重点讨论大语言模型',
+      hardConstraints: {
+        minWords: 500,
+        maxWords: 1000,
+        keywords: ['AI', '人工智能', '技术发展'],
+      },
+    });
+
+    console.log('初始状态:', {
+      taskId: state.taskId,
+      topic: state.topic,
+      mode: state.mode,
+    });
+
+    // 创建工作流图
+    const graph = createWorkflowGraph('content-creator');
+
+    // 执行工作流
+    const result = await graph.invoke(state);
 
     console.log('\n工作流执行成功！');
     console.log('文章内容:', result.articleContent?.substring(0, 100) + '...');
@@ -57,120 +81,73 @@ async function example1_BasicUsage() {
 }
 
 /**
- * 示例 2：使用检查点恢复
+ * 示例 3：使用翻译工作流
  */
-async function example2_WithCheckpoints() {
-  console.log('\n=== 示例 2：使用检查点恢复 ===\n');
+async function example3_TranslationWorkflow() {
+  console.log('\n=== 示例 3：使用翻译工作流 ===\n');
 
-  // 1. 创建工作流图（带检查点）
-  const graph = createContentCreatorGraph();
-
-  // 2. 创建初始状态
-  const initialState = createInitialState({
-    taskId: `task-with-checkpoint-${Date.now()}`,
-    mode: ExecutionMode.SYNC,
-    topic: 'Web 开发的最佳实践',
-    requirements: '介绍现代 Web 开发的最佳实践，包括性能优化和安全考虑',
-    hardConstraints: {
-      minWords: 800,
-      maxWords: 1200,
-      keywords: ['Web', '前端', '性能优化'],
-    },
-  });
-
-  console.log('初始状态:', {
-    taskId: initialState.taskId,
-    topic: initialState.topic,
-  });
-
-  // 3. 执行工作流
   try {
-    const result = await graph.invoke(initialState);
+    // 创建工作流状态
+    const state = createWorkflowState('translation', {
+      taskId: `translation-task-${Date.now()}`,
+      mode: ExecutionMode.SYNC,
+      sourceText: 'Artificial intelligence is transforming the world',
+      sourceLanguage: 'en',
+      targetLanguage: 'zh',
+      translationStyle: 'formal',
+      domain: 'technology',
+    });
+
+    console.log('初始状态:', {
+      taskId: state.taskId,
+      sourceText: state.sourceText,
+      sourceLanguage: state.sourceLanguage,
+      targetLanguage: state.targetLanguage,
+    });
+
+    // 创建工作流图
+    const graph = createWorkflowGraph('translation');
+
+    // 执行工作流
+    const result = await graph.invoke(state);
 
     console.log('\n工作流执行成功！');
-    console.log('文章字数:', result.articleContent?.length);
-    console.log('配图数量:', result.images?.length || 0);
+    console.log('源文本:', result.sourceText);
+    console.log('翻译后:', result.translatedText);
+    console.log('质量评分:', result.qualityReport?.score);
   } catch (error) {
     console.error('\n工作流执行失败:', error);
   }
 }
 
 /**
- * 示例 3：流式输出
+ * 示例 4：参数验证
  */
-async function example3_StreamingOutput() {
-  console.log('\n=== 示例 3：流式输出 ===\n');
+async function example4_ParameterValidation() {
+  console.log('\n=== 示例 4：参数验证 ===\n');
 
-  // 1. 创建工作流图
-  const graph = createSimpleContentCreatorGraph();
-
-  // 2. 创建初始状态
-  const initialState = createInitialState({
-    taskId: `task-streaming-${Date.now()}`,
+  // 验证内容创作工作流参数
+  const validContentParams = {
+    taskId: 'valid-task-001',
     mode: ExecutionMode.SYNC,
-    topic: '远程工作的优势与挑战',
-    requirements: '分析远程工作的优势和面临的挑战，给出实用建议',
-    hardConstraints: {
-      minWords: 600,
-      maxWords: 1000,
-      keywords: ['远程工作', '团队协作', '工作效率'],
-    },
-  });
+    topic: '区块链技术',
+    requirements: '深入讲解区块链原理',
+  };
 
-  console.log('初始状态:', {
-    taskId: initialState.taskId,
-    topic: initialState.topic,
-  });
+  const isValidContent = WorkflowRegistry.validateParams('content-creator', validContentParams);
+  console.log(`内容创作工作流参数验证: ${isValidContent ? '✅ 通过' : '❌ 失败'}`);
 
-  // 3. 流式执行工作流
-  try {
-    let stepCount = 0;
+  // 验证翻译工作流参数
+  const validTranslationParams = {
+    taskId: 'valid-task-002',
+    mode: ExecutionMode.SYNC,
+    sourceText: 'Hello World',
+    sourceLanguage: 'en',
+    targetLanguage: 'zh',
+  };
 
-    for await (const event of graph.stream(initialState)) {
-      const [nodeName, output] = Object.entries(event)[0];
-
-      if (nodeName !== '__end__') {
-        stepCount++;
-        console.log(`\n[步骤 ${stepCount}] ${nodeName} 节点完成`);
-
-        // 显示当前状态
-        if (output.currentStep) {
-          console.log('  当前步骤:', output.currentStep);
-        }
-
-        // 显示搜索结果
-        if (output.searchResults) {
-          console.log('  搜索结果:', output.searchResults.length, '条');
-        }
-
-        // 显示文章内容
-        if (output.articleContent) {
-          console.log(
-            '  文章内容:',
-            output.articleContent.substring(0, 50) + '...'
-          );
-        }
-
-        // 显示质检结果
-        if (output.textQualityReport) {
-          console.log(
-            '  文本质检:',
-            output.textQualityReport.passed ? '通过' : '未通过',
-            `分数: ${output.textQualityReport.score}`
-          );
-        }
-
-        // 显示配图
-        if (output.images) {
-          console.log('  配图数量:', output.images.length);
-        }
-      }
-    }
-
-    console.log('\n工作流执行完成！');
-  } catch (error) {
-    console.error('\n工作流执行失败:', error);
-  }
+  const isValidTranslation = WorkflowRegistry.validateParams('translation', validTranslationParams);
+  console.log(`翻译工作流参数验证: ${isValidTranslation ? '✅ 通过' : '❌ 失败'}`);
 }
 
 /**
@@ -181,9 +158,10 @@ async function main() {
   console.log('====================================\n');
 
   // 运行示例
-  await example1_BasicUsage();
-  await example2_WithCheckpoints();
-  await example3_StreamingOutput();
+  await example1_WorkflowRegistry();
+  await example2_ContentCreatorWorkflow();
+  await example3_TranslationWorkflow();
+  await example4_ParameterValidation();
 }
 
 // 如果直接运行此文件
@@ -194,4 +172,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   });
 }
 
-export { example1_BasicUsage, example2_WithCheckpoints, example3_StreamingOutput };
+export {
+  example1_WorkflowRegistry,
+  example2_ContentCreatorWorkflow,
+  example3_TranslationWorkflow,
+  example4_ParameterValidation
+};

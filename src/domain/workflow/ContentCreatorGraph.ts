@@ -117,13 +117,13 @@ function wrapNodeWithCheckpoint(
       await checkpointManager.saveCheckpoint(state.taskId, nodeName, {
         ...state,
         ...result,
-      });
+      } as unknown as WorkflowState);
 
       // 更新步骤
       return {
         ...result,
         currentStep: nodeName,
-      };
+      } as unknown as Partial<WorkflowState>;
     } catch (error) {
       logger.error(`Node ${nodeName} failed`, {
         taskId: state.taskId,
@@ -171,15 +171,25 @@ export function createContentCreatorGraph(): any {
   // 创建 StateGraph
   const graph = new StateGraph<WorkflowState>({
     channels: {
-      // 输入参数
+      // 输入参数（BaseWorkflowState）
       taskId: {
         default: () => '',
         reducer: (x?: string, y?: string) => y ?? x ?? '',
+      },
+      workflowType: {
+        default: () => 'content-creator' as const,
+        reducer: (x?: 'content-creator', y?: 'content-creator') => (y ?? x ?? 'content-creator') as 'content-creator',
       },
       mode: {
         default: () => ExecutionMode.SYNC,
         reducer: (x?: ExecutionMode, y?: ExecutionMode) => y ?? x ?? ExecutionMode.SYNC,
       },
+      retryCount: {
+        default: () => 0,
+        reducer: (x?: number, y?: number) => (y !== undefined ? y : x || 0),
+      },
+
+      // 输入参数（ContentCreator 特定）
       topic: {
         default: () => '',
         reducer: (x?: string, y?: string) => y ?? x ?? '',
@@ -323,14 +333,25 @@ export function createSimpleContentCreatorGraph(): any {
   // 创建 StateGraph
   const graph = new StateGraph<WorkflowState>({
     channels: {
+      // 输入参数（BaseWorkflowState）
       taskId: {
         default: () => '',
         reducer: (x?: string, y?: string) => y ?? x ?? '',
+      },
+      workflowType: {
+        default: () => 'content-creator' as const,
+        reducer: (x?: 'content-creator', y?: 'content-creator') => (y ?? x ?? 'content-creator') as 'content-creator',
       },
       mode: {
         default: () => ExecutionMode.SYNC,
         reducer: (x?: ExecutionMode, y?: ExecutionMode) => y ?? x ?? ExecutionMode.SYNC,
       },
+      retryCount: {
+        default: () => 0,
+        reducer: (x?: number, y?: number) => (y !== undefined ? y : x || 0),
+      },
+
+      // 输入参数（ContentCreator 特定）
       topic: {
         default: () => '',
         reducer: (x?: string, y?: string) => y ?? x ?? '',
@@ -343,6 +364,8 @@ export function createSimpleContentCreatorGraph(): any {
         default: () => ({}),
         reducer: (x?: any, y?: any) => y ?? x ?? {},
       },
+
+      // 流程数据
       searchQuery: {
         default: () => undefined,
         reducer: (x?: string, y?: string) => y ?? x,
@@ -379,6 +402,8 @@ export function createSimpleContentCreatorGraph(): any {
         default: () => undefined,
         reducer: (x?: any, y?: any) => y ?? x,
       },
+
+      // 控制数据
       currentStep: {
         default: () => 'start',
         reducer: (x?: string, y?: string) => y ?? x ?? 'start',
@@ -406,6 +431,10 @@ export function createSimpleContentCreatorGraph(): any {
       error: {
         default: () => undefined,
         reducer: (x?: string, y?: string) => y ?? x,
+      },
+      metadata: {
+        default: () => undefined,
+        reducer: (x?: any, y?: any) => y ?? x,
       },
     },
   }) as any;

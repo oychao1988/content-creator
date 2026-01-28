@@ -1,6 +1,6 @@
 # 写作 Agent (Content Creator)
 
-基于 LangGraph 的智能写作 Agent，支持选题搜索、内容生成、质量检查和配图生成，采用 PostgreSQL 数据持久化，支持同步和异步两种执行模式。
+基于 LangGraph 的智能写作 Agent，支持选题搜索、内容生成、质量检查和配图生成，采用 PostgreSQL 数据持久化，支持同步和异步两种执行模式。项目已扩展为支持多工作流架构，包括内容创作和翻译工作流。
 
 ---
 
@@ -15,6 +15,8 @@
 - ✅ 多种模式：同步（立即返回）和异步（后台处理）
 - ✅ 高并发：支持 100 人同时在线，日处理 3000+ 任务
 - ✅ 高可用：多 Worker 架构，自动故障恢复
+- ✅ 多工作流：支持内容创作和翻译工作流，可扩展
+- ✅ 插件化架构：通过 WorkflowRegistry 支持动态添加新工作流
 
 ---
 
@@ -30,6 +32,8 @@
 | [📖 用户操作手册](./docs/user-guide.md) | 完整的用户使用指南 |
 | [🏗️ 系统架构设计](./docs/architecture-complete.md) | 完整的系统架构（5500+ 行） |
 | [⚙️ 工作流架构](./docs/workflow-architecture.md) | LangGraph 工作流详解 |
+| [🔌 工作流扩展架构](./docs/workflow-extension-design.md) | 多工作流插件化架构设计 |
+| [🌍 翻译工作流使用](./docs/translation-workflow-guide.md) | 翻译工作流详细使用说明 |
 | [✅ 质量检查架构](./docs/quality-check-architecture.md) | 质量检查系统设计 |
 | [💾 存储机制说明](./docs/storage-guide.md) | PostgreSQL 数据存储 |
 
@@ -147,9 +151,13 @@ pnpm run build        # 构建生产版本
 pnpm run start        # 运行生产版本
 
 # 测试
-pnpm run test         # 运行测试
+pnpm run test         # 运行所有测试
+pnpm run test:unit    # 运行单元测试
+pnpm run test:integration # 运行集成测试
+pnpm run test:performance # 运行性能测试
 pnpm run test:ui      # 测试 UI
 pnpm run test:coverage # 测试覆盖率
+pnpm run test:watch   # 测试监听模式
 
 # 代码质量
 pnpm run lint         # ESLint 检查
@@ -157,12 +165,29 @@ pnpm run format       # Prettier 格式化
 
 # 数据库
 pnpm run db:migrate   # 运行迁移
+pnpm run db:rollback  # 回滚迁移
+pnpm run db:status    # 检查迁移状态
 pnpm run db:seed      # 填充测试数据
 
-# Worker 和监控（阶段 3）
+# Worker 和监控
 pnpm run worker       # 启动 Worker
 pnpm run monitor      # 启动监控面板
 pnpm run scheduler    # 启动调度器
+
+# CLI 使用
+pnpm run cli          # 显示 CLI 帮助
+pnpm run cli:create   # 创建任务
+pnpm run cli:list     # 列出任务
+pnpm run cli:retry    # 重试任务
+pnpm run cli:status   # 任务状态
+pnpm run cli:result   # 任务结果
+pnpm run cli:cancel   # 取消任务
+pnpm run cli:workflow # 工作流管理命令
+
+# 示例运行
+pnpm run example:ts   # 运行 TypeScript 示例
+pnpm run example:js   # 运行 JavaScript 示例
+pnpm run example:py   # 运行 Python 示例
 
 # 工具
 pnpm run verify-env   # 验证环境配置
@@ -202,6 +227,13 @@ pnpm run verify-env   # 验证环境配置
 - 监控与日志
 - 性能优化
 - 安全加固
+
+### 阶段 5：工作流扩展架构 ✅
+- 多工作流架构设计
+- WorkflowRegistry 实现
+- 翻译工作流支持
+- 插件化架构
+- 向后兼容性保障
 
 **详细开发历史**：查看 [docs/archive/phases/](./docs/archive/phases/)
 

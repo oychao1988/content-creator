@@ -261,7 +261,7 @@ export class EnhancedLLMService {
 
     // 非流式请求
     const response = await axios.post<ChatResponse>(
-      `${this.baseURL}/v1/chat/completions`,
+      `${this.baseURL}/chat/completions`,
       {
         model: request.model || this.modelName,
         messages: request.messages,
@@ -294,7 +294,7 @@ export class EnhancedLLMService {
     });
 
     const response = await axios.post(
-      `${this.baseURL}/v1/chat/completions`,
+      `${this.baseURL}/chat/completions`,
       {
         model: request.model || this.modelName,
         messages: request.messages,

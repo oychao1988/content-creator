@@ -13,6 +13,7 @@ import { resultCommand } from './commands/result.js';
 import { cancelCommand } from './commands/cancel.js';
 import { listCommand } from './commands/list.js';
 import { retryCommand } from './commands/retry.js';
+import { workflowCommand } from './commands/workflow.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 
 const logger = createLogger('CLI');
@@ -33,6 +34,7 @@ program.addCommand(retryCommand);
 program.addCommand(statusCommand);
 program.addCommand(resultCommand);
 program.addCommand(cancelCommand);
+program.addCommand(workflowCommand);
 
 // 解析参数
 program.parse();

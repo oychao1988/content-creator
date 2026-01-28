@@ -676,24 +676,24 @@ export class CheckTextNodeWithRepo extends CheckTextNode {
     const result = await super.execute(state);
 
     // 如果有质检报告且提供了仓储，直接保存到数据库
-    if (result.stateUpdate.textQualityReport && this.qualityCheckRepo) {
+    if ((result.stateUpdate as any).textQualityReport && this.qualityCheckRepo) {
       try {
         await this.qualityCheckRepo.create({
           taskId: state.taskId,
           checkType: 'text',
-          score: result.stateUpdate.textQualityReport!.score || 0,
-          passed: result.stateUpdate.textQualityReport!.passed,
-          hardConstraintsPassed: result.stateUpdate.textQualityReport!.hardConstraintsPassed || false,
-          details: result.stateUpdate.textQualityReport!.details || {},
-          fixSuggestions: result.stateUpdate.textQualityReport!.fixSuggestions || [],
+          score: (result.stateUpdate as any).textQualityReport!.score || 0,
+          passed: (result.stateUpdate as any).textQualityReport!.passed,
+          hardConstraintsPassed: (result.stateUpdate as any).textQualityReport!.hardConstraintsPassed || false,
+          details: (result.stateUpdate as any).textQualityReport!.details || {},
+          fixSuggestions: (result.stateUpdate as any).textQualityReport!.fixSuggestions || [],
           rubricVersion: '1.0',
-          modelName: result.stateUpdate.textQualityReport!.modelName,
+          modelName: (result.stateUpdate as any).textQualityReport!.modelName,
         });
 
         this.logger.info('Text quality report saved to database directly from CheckTextNode', {
           taskId: state.taskId,
-          score: result.stateUpdate.textQualityReport!.score,
-          passed: result.stateUpdate.textQualityReport!.passed,
+          score: (result.stateUpdate as any).textQualityReport!.score,
+          passed: (result.stateUpdate as any).textQualityReport!.passed,
         });
       } catch (error) {
         this.logger.error('Failed to save quality report from CheckTextNode', {

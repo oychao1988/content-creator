@@ -10,10 +10,12 @@ import type { ITaskRepository } from '../../domain/repositories/TaskRepository.j
 import type { IResultRepository } from '../../domain/repositories/ResultRepository.js';
 import type { IQualityCheckRepository } from '../../domain/repositories/QualityCheckRepository.js';
 import type { CreateTaskParams } from '../../domain/entities/Task.js';
-import { TaskStatus } from '../../domain/entities/Task.js';
+import { TaskStatus, ExecutionMode } from '../../domain/entities/Task.js';
 import type { WorkflowState } from '../../domain/workflow/State.js';
-import { createSimpleContentCreatorGraph } from '../../domain/workflow/ContentCreatorGraph.js';
-import { createInitialState } from '../../domain/workflow/State.js';
+import type { BaseWorkflowState } from '../../domain/workflow/BaseWorkflowState.js';
+import { WorkflowRegistry } from '../../domain/workflow/WorkflowRegistry.js';
+import { contentCreatorWorkflowAdapter } from '../../domain/workflow/adapters/ContentCreatorWorkflowAdapter.js';
+import { translationWorkflowFactory } from '../../domain/workflow/examples/TranslationWorkflow.js';
 import type {
   ExecutorConfig,
   ExecutionResult,
@@ -46,6 +48,14 @@ export class SyncExecutor {
       logLevel: config.logLevel || 'info',
     };
 
+    // 注册工作流（如果尚未注册）
+    if (!WorkflowRegistry.has('content-creator')) {
+      WorkflowRegistry.register(contentCreatorWorkflowAdapter);
+    }
+    if (!WorkflowRegistry.has('translation')) {
+      WorkflowRegistry.register(translationWorkflowFactory);
+    }
+
     logger.info('SyncExecutor initialized', {
       databaseType: this.config.databaseType,
       timeout: this.config.timeout,
@@ -75,29 +85,34 @@ export class SyncExecutor {
     // 使用幂等键作为taskId，或生成新的UUID
     const taskId = params.idempotencyKey || uuidv4();
 
+    // 1. 确定工作流类型（默认为 content-creator）
+    const workflowType = params.type || 'content-creator';
+
     logger.info('Starting task execution', {
       taskId,
+      workflowType,
       topic: params.topic,
       mode: params.mode
     });
 
     try {
-      // 1. 创建任务记录
+      // 2. 创建任务记录
       const task = await this.createTask(taskId, params);
 
-      // 2. 创建初始工作流状态
-      const initialState = createInitialState({
+      // 3. 从注册表获取工厂方法
+      // 4. 使用工厂方法创建工作流状态
+      const initialState = WorkflowRegistry.createState<WorkflowState>(workflowType, {
         taskId: task.taskId,
+        mode: task.mode === 'sync' ? ExecutionMode.SYNC : ExecutionMode.ASYNC,
         topic: task.topic,
         requirements: task.requirements,
-        targetAudience: task.targetAudience || '',
+        targetAudience: task.targetAudience,
         keywords: task.keywords,
         tone: task.tone,
         hardConstraints: task.hardConstraints,
-        mode: task.mode,
       });
 
-      // 3. 更新任务状态为running
+      // 5. 更新任务状态为running
       const updated = await this.taskRepo.updateStatus(
         taskId,
         TaskStatus.RUNNING,
@@ -108,13 +123,13 @@ export class SyncExecutor {
         throw new Error('Failed to update task status to running');
       }
 
-      // 4. 执行工作流
-      const finalState = await this.executeWorkflow(taskId, initialState);
+      // 6. 执行工作流
+      const finalState = await this.executeWorkflow(taskId, initialState, workflowType);
 
-      // 5. 保存结果
+      // 7. 保存结果
       await this.saveResults(taskId, finalState);
 
-      // 6. 标记任务完成
+      // 8. 标记任务完成
       const currentTask = await this.taskRepo.findById(taskId);
       if (currentTask) {
         // 🆕 修复：使用当前版本，不要 +1，避免乐观锁冲突
@@ -139,6 +154,7 @@ export class SyncExecutor {
 
       logger.info('Task completed successfully', {
         taskId,
+        workflowType,
         duration,
         stepsCompleted: (finalState as any).stepsCompleted || [],
       });
@@ -160,6 +176,7 @@ export class SyncExecutor {
 
       logger.error('Task execution failed', {
         taskId,
+        workflowType,
         error: errorMessage,
         stack: error instanceof Error ? error.stack : undefined
       });
@@ -227,21 +244,23 @@ export class SyncExecutor {
    */
   private async executeWorkflow(
     taskId: string,
-    initialState: WorkflowState
+    initialState: BaseWorkflowState,
+    workflowType: string
   ): Promise<WorkflowState> {
-    logger.debug('Executing workflow', { taskId });
+    logger.debug('Executing workflow', { taskId, workflowType });
 
     const startTime = Date.now();
 
     try {
-      // 创建工作流图实例
-      const graph = createSimpleContentCreatorGraph();
+      // 从注册表创建工作流图实例
+      const graph = WorkflowRegistry.createGraph(workflowType);
 
       // 使用 invoke 方法执行完整工作流
-      logger.info('Invoking workflow graph', { taskId });
+      logger.info('Invoking workflow graph', { taskId, workflowType });
       const result = await graph.invoke(initialState);
       logger.info('Workflow invocation completed', {
         taskId,
+        workflowType,
         finalStep: result.currentStep,
         hasContent: !!result.articleContent,
         duration: Date.now() - startTime
@@ -251,6 +270,7 @@ export class SyncExecutor {
     } catch (error) {
       logger.error('Workflow execution error', {
         taskId,
+        workflowType,
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;

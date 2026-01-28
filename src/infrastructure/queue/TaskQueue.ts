@@ -17,6 +17,7 @@ const logger = createLogger('TaskQueue');
  */
 export interface TaskJobData {
   taskId: string;
+  type?: string;                 // 工作流类型，默认为 'content-creator'
   mode: 'sync' | 'async';
   topic: string;
   requirements: string;
