@@ -25,6 +25,8 @@ const logger = createLogger('ContentCreatorGraph');
 
 /**
  * 文本质检后的路由函数
+ *
+ * 阶段二优化：直接跳到 checkImage（checkImage 会自动生成图片）
  */
 function routeAfterCheckText(state: WorkflowState): string {
   logger.debug('Routing after check text', {
@@ -33,13 +35,13 @@ function routeAfterCheckText(state: WorkflowState): string {
     retryCount: state.textRetryCount,
   });
 
-  // 如果质检通过，生成配图
+  // 如果质检通过，直接跳到图片质检（checkImage 会自动生成图片）
   if (state.textQualityReport?.passed) {
-    logger.info('Text quality check passed, proceeding to image generation', {
+    logger.info('Text quality check passed, proceeding to image quality check (auto-generate if needed)', {
       taskId: state.taskId,
       score: state.textQualityReport.score,
     });
-    return 'generate_image';
+    return 'checkImage';  // ✅ 阶段二优化：跳过 generate_image 节点
   }
 
   // 如果质检失败但重试次数未满，重试写作
@@ -285,7 +287,9 @@ export function createContentCreatorGraph(): any {
   graph.addEdge('organize' as any, 'write');
   graph.addEdge('write' as any, 'checkText');
   // 注意: checkText 的出边由条件边控制，不要添加默认边
-  // graph.addEdge('checkText', 'generate_image'); // 已移除，避免与条件边冲突
+  // 阶段二优化：checkText 直接路由到 checkImage，checkImage 会自动生成图片
+  // graph.addEdge('checkText', 'checkImage'); // 已通过条件边实现
+  // generate_image 节点只在 checkImage 失败重试时使用
   graph.addEdge('generate_image' as any, 'checkImage');
   // 注意: checkImage 的出边由条件边控制，不要添加默认边
   // graph.addEdge('checkImage', END); // 已移除，避免与条件边冲突
@@ -296,7 +300,7 @@ export function createContentCreatorGraph(): any {
     routeAfterCheckText,
     {
       write: 'write',
-      generate_image: 'generate_image',
+      checkImage: 'checkImage',  // ✅ 阶段二优化：直接路由到 checkImage
     }
   );
 
@@ -453,7 +457,9 @@ export function createSimpleContentCreatorGraph(): any {
   graph.addEdge('organize' as any, 'write');
   graph.addEdge('write' as any, 'checkText');
   // 注意: checkText 的出边由条件边控制，不要添加默认边
-  // graph.addEdge('checkText', 'generate_image'); // 已移除，避免与条件边冲突
+  // 阶段二优化：checkText 直接路由到 checkImage，checkImage 会自动生成图片
+  // graph.addEdge('checkText', 'checkImage'); // 已通过条件边实现
+  // generate_image 节点只在 checkImage 失败重试时使用
   graph.addEdge('generate_image' as any, 'checkImage');
   // 注意: checkImage 的出边由条件边控制，不要添加默认边
   // graph.addEdge('checkImage', END); // 已移除，避免与条件边冲突
@@ -461,7 +467,7 @@ export function createSimpleContentCreatorGraph(): any {
   // 添加条件边
   graph.addConditionalEdges('checkText' as any, routeAfterCheckText, {
     write: 'write',
-    generate_image: 'generate_image',
+    checkImage: 'checkImage',  // ✅ 阶段二优化：直接路由到 checkImage
   });
 
   graph.addConditionalEdges('checkImage' as any, routeAfterCheckImage, {

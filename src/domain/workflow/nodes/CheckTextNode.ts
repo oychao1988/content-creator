@@ -2,6 +2,7 @@
  * CheckText Node - 文本质检节点
  *
  * 对文章进行质量检查，包括硬规则检查和 LLM 软评分
+ * 支持缓存以避免重复的 LLM 调用
  */
 
 import { BaseNode, type NodeResult } from './BaseNode.js';
@@ -10,6 +11,8 @@ import type { QualityReport } from '../State.js';
 import type { QualityCheckDetails } from '../../entities/QualityCheck.js';
 import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
+import { createQualityCheckCache, type IQualityCheckCache, generateCacheKey } from '../../../infrastructure/cache/QualityCheckCache.js';
+import { config } from '../../../config/index.js';
 
 const logger = createLogger('CheckTextNode');
 
@@ -113,6 +116,7 @@ interface CheckTextNodeConfig {
     completeness: number;
     readability: number;
   };
+  enableCache?: boolean; // 是否启用缓存
 }
 
 /**
@@ -120,6 +124,7 @@ interface CheckTextNodeConfig {
  */
 export class CheckTextNode extends BaseNode {
   private config: CheckTextNodeConfig;
+  private cache: IQualityCheckCache;
 
   constructor(config: CheckTextNodeConfig = {}) {
     super({
@@ -139,8 +144,21 @@ export class CheckTextNode extends BaseNode {
         completeness: 0.2,
         readability: 0.2,
       },
+      enableCache: config.enableCache !== false, // 默认启用缓存
       ...config,
     };
+
+    // 初始化缓存
+    this.cache = createQualityCheckCache({
+      type: 'memory',
+      ttl: 24 * 3600, // 24 小时
+      maxSize: 1000,
+    });
+
+    logger.info('CheckText cache initialized', {
+      enabled: this.config.enableCache,
+      type: 'memory',
+    });
   }
 
   /**
@@ -238,12 +256,49 @@ export class CheckTextNode extends BaseNode {
   /**
    * 调用 LLM 进行软评分和改进建议
    *
-   * 优化：一次 LLM 调用同时获取软评分和改进建议，避免重复调用
+   * 优化：
+   * - 一次 LLM 调用同时获取软评分和改进建议，避免重复调用
+   * - 支持缓存以避免相同内容的重复质检
    */
   private async callLLMForSoftScore(state: WorkflowState): Promise<{
     softScores: SoftScores;
     fixSuggestions: string[];
   }> {
+    // ========== 缓存检查（阶段四优化） ==========
+    if (this.config.enableCache) {
+      try {
+        // 生成缓存键（基于文章内容）
+        const cacheKey = await generateCacheKey(state.articleContent!, 'checkText');
+
+        // 尝试从缓存获取
+        const cached = await this.cache.get(cacheKey);
+        if (cached) {
+          logger.info('Cache hit for quality check', {
+            taskId: state.taskId,
+            cacheKey,
+            score: cached.score,
+          });
+
+          // 从缓存的结果中提取 softScores 和 fixSuggestions
+          return {
+            softScores: cached.details.softScores,
+            fixSuggestions: cached.fixSuggestions || [],
+          };
+        }
+
+        logger.debug('Cache miss, calling LLM', {
+          taskId: state.taskId,
+          cacheKey,
+        });
+      } catch (error) {
+        logger.warn('Cache check failed, falling back to LLM', {
+          taskId: state.taskId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // 缓存失败时，继续执行 LLM 调用
+      }
+    }
+
     logger.debug('Calling LLM for soft scoring and suggestions', {
       taskId: state.taskId,
     });
@@ -344,7 +399,36 @@ export class CheckTextNode extends BaseNode {
       };
     }
 
-    // 4. 返回软评分和改进建议（一次性返回，避免重复调用）
+    // 4. 构建完整的质检报告（用于缓存）
+    const qualityReport: QualityReport = {
+      score: output.score,
+      passed: output.passed,
+      hardConstraintsPassed: output.hardConstraintsPassed,
+      details: output.details,
+      fixSuggestions: output.fixSuggestions || [],
+      checkedAt: Date.now(),
+    };
+
+    // 5. 保存到缓存（如果启用）
+    if (this.config.enableCache) {
+      try {
+        const cacheKey = await generateCacheKey(state.articleContent!, 'checkText');
+        await this.cache.set(cacheKey, qualityReport);
+        logger.debug('Quality check result cached', {
+          taskId: state.taskId,
+          cacheKey,
+          score: output.score,
+        });
+      } catch (error) {
+        logger.warn('Failed to cache quality check result', {
+          taskId: state.taskId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // 缓存失败不影响主流程
+      }
+    }
+
+    // 6. 返回软评分和改进建议（一次性返回，避免重复调用）
     return {
       softScores: output.details.softScores,
       fixSuggestions: output.fixSuggestions || [],

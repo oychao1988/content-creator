@@ -180,6 +180,8 @@ export class CheckImageNode extends BaseNode {
 
   /**
    * 执行质检逻辑
+   *
+   * 阶段二优化：如果没有图片，自动生成图片后再质检
    */
   protected async executeLogic(state: WorkflowState): Promise<Partial<WorkflowState>> {
     logger.info('Starting image quality check', {
@@ -189,22 +191,27 @@ export class CheckImageNode extends BaseNode {
     });
 
     try {
+      // ========== 阶段二优化：自动生成图片 ==========
       // 1. 检查是否有图片
       if (!state.images || state.images.length === 0) {
-        logger.warn('No images to check', {
+        logger.info('No images found, generating images first', {
           taskId: state.taskId,
         });
 
-        // 没有图片，返回空质检报告
-        return {
-          imageQualityReport: {
-            score: 0,
-            passed: false,
-            hardConstraintsPassed: false,
-            details: {},
-            checkedAt: Date.now(),
-          },
-        };
+        // 动态导入 GenerateImageNode 避免循环依赖
+        const { GenerateImageNode } = await import('./GenerateImageNode.js');
+        const generateImageNode = new GenerateImageNode();
+
+        // 调用 GenerateImageNode 生成图片
+        const generateResult = await generateImageNode.execute(state);
+
+        logger.info('Images generated, proceeding to quality check', {
+          taskId: state.taskId,
+          imageCount: generateResult.images?.length || 0,
+        });
+
+        // 更新 state
+        state = { ...state, ...generateResult } as WorkflowState;
       }
 
       // 测试环境下直接返回默认质检报告，避免 LLM 调用
