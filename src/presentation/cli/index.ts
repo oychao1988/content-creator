@@ -15,8 +15,12 @@ import { listCommand } from './commands/list.js';
 import { retryCommand } from './commands/retry.js';
 import { workflowCommand } from './commands/workflow.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
+import { ensureWorkflowsInitialized } from '../../domain/workflow/initialize.js';
 
 const logger = createLogger('CLI');
+
+// 确保工作流已初始化
+ensureWorkflowsInitialized();
 
 // 创建主程序
 const program = new Command();

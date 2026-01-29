@@ -69,6 +69,57 @@ describe('TranslationWorkflow', () => {
       expect(metadata.examples).toHaveLength(2);
     });
 
+    it('should have paramDefinitions in metadata', () => {
+      const metadata = factory.getMetadata();
+
+      expect(metadata.paramDefinitions).toBeDefined();
+      expect(metadata.paramDefinitions?.length).toBe(5);
+
+      // 验证 sourceText 参数定义
+      const sourceTextParam = metadata.paramDefinitions?.find(p => p.name === 'sourceText');
+      expect(sourceTextParam).toBeDefined();
+      expect(sourceTextParam?.description).toBe('待翻译的文本');
+      expect(sourceTextParam?.type).toBe('string');
+      expect(sourceTextParam?.required).toBe(true);
+
+      // 验证 sourceLanguage 参数定义
+      const sourceLanguageParam = metadata.paramDefinitions?.find(p => p.name === 'sourceLanguage');
+      expect(sourceLanguageParam).toBeDefined();
+      expect(sourceLanguageParam?.type).toBe('string');
+      expect(sourceLanguageParam?.required).toBe(true);
+      expect(sourceLanguageParam?.examples).toContain('en');
+      expect(sourceLanguageParam?.examples).toContain('zh');
+
+      // 验证 targetLanguage 参数定义
+      const targetLanguageParam = metadata.paramDefinitions?.find(p => p.name === 'targetLanguage');
+      expect(targetLanguageParam).toBeDefined();
+      expect(targetLanguageParam?.type).toBe('string');
+      expect(targetLanguageParam?.required).toBe(true);
+
+      // 验证可选参数
+      const translationStyleParam = metadata.paramDefinitions?.find(p => p.name === 'translationStyle');
+      expect(translationStyleParam).toBeDefined();
+      expect(translationStyleParam?.required).toBe(false);
+      expect(translationStyleParam?.examples).toContain('formal');
+    });
+
+    it('should have stepNames in metadata', () => {
+      const metadata = factory.getMetadata();
+
+      expect(metadata.stepNames).toBeDefined();
+      expect(metadata.stepNames?.['translate']).toBe('翻译');
+      expect(metadata.stepNames?.['checkQuality']).toBe('质检');
+    });
+
+    it('should have retryFields in metadata', () => {
+      const metadata = factory.getMetadata();
+
+      expect(metadata.retryFields).toBeDefined();
+      expect(metadata.retryFields?.length).toBe(1);
+      expect(metadata.retryFields?.[0].name).toBe('translationRetryCount');
+      expect(metadata.retryFields?.[0].displayName).toBe('翻译重试');
+    });
+
     describe('validateParams', () => {
       it('should validate valid parameters', () => {
         const params = createParams({

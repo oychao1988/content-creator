@@ -163,6 +163,97 @@ describe('CLI Workflow Commands Unit Tests', () => {
       expect(example2.params.sourceLanguage).toBe('en');
       expect(example2.params.targetLanguage).toBe('ja');
     });
+
+    it('should have paramDefinitions in content-creator metadata', () => {
+      const metadata = WorkflowRegistry.getMetadata('content-creator');
+
+      expect(metadata?.paramDefinitions).toBeDefined();
+      expect(metadata?.paramDefinitions?.length).toBeGreaterThan(0);
+
+      // 验证 topic 参数
+      const topicParam = metadata?.paramDefinitions?.find(p => p.name === 'topic');
+      expect(topicParam).toBeDefined();
+      expect(topicParam?.type).toBe('string');
+      expect(topicParam?.required).toBe(true);
+      expect(topicParam?.description).toContain('主题');
+
+      // 验证 requirements 参数
+      const requirementsParam = metadata?.paramDefinitions?.find(p => p.name === 'requirements');
+      expect(requirementsParam).toBeDefined();
+      expect(requirementsParam?.type).toBe('string');
+      expect(requirementsParam?.required).toBe(true);
+
+      // 验证可选参数
+      const keywordsParam = metadata?.paramDefinitions?.find(p => p.name === 'keywords');
+      expect(keywordsParam).toBeDefined();
+      expect(keywordsParam?.type).toBe('array');
+      expect(keywordsParam?.required).toBe(false);
+    });
+
+    it('should have paramDefinitions in translation metadata', () => {
+      const metadata = WorkflowRegistry.getMetadata('translation');
+
+      expect(metadata?.paramDefinitions).toBeDefined();
+      expect(metadata?.paramDefinitions?.length).toBe(5);
+
+      // 验证必需参数
+      const sourceTextParam = metadata?.paramDefinitions?.find(p => p.name === 'sourceText');
+      expect(sourceTextParam?.required).toBe(true);
+
+      const sourceLanguageParam = metadata?.paramDefinitions?.find(p => p.name === 'sourceLanguage');
+      expect(sourceLanguageParam?.required).toBe(true);
+
+      const targetLanguageParam = metadata?.paramDefinitions?.find(p => p.name === 'targetLanguage');
+      expect(targetLanguageParam?.required).toBe(true);
+
+      // 验证可选参数
+      const translationStyleParam = metadata?.paramDefinitions?.find(p => p.name === 'translationStyle');
+      expect(translationStyleParam?.required).toBe(false);
+    });
+
+    it('should have stepNames in content-creator metadata', () => {
+      const metadata = WorkflowRegistry.getMetadata('content-creator');
+
+      expect(metadata?.stepNames).toBeDefined();
+      expect(metadata?.stepNames?.['search']).toBe('搜索内容');
+      expect(metadata?.stepNames?.['organize']).toBe('组织信息');
+      expect(metadata?.stepNames?.['write']).toBe('撰写内容');
+      expect(metadata?.stepNames?.['check_text']).toBe('文本质检');
+      expect(metadata?.stepNames?.['generate_image']).toBe('生成配图');
+      expect(metadata?.stepNames?.['check_image']).toBe('图片质检');
+    });
+
+    it('should have stepNames in translation metadata', () => {
+      const metadata = WorkflowRegistry.getMetadata('translation');
+
+      expect(metadata?.stepNames).toBeDefined();
+      expect(metadata?.stepNames?.['translate']).toBe('翻译');
+      expect(metadata?.stepNames?.['checkQuality']).toBe('质检');
+    });
+
+    it('should have retryFields in content-creator metadata', () => {
+      const metadata = WorkflowRegistry.getMetadata('content-creator');
+
+      expect(metadata?.retryFields).toBeDefined();
+      expect(metadata?.retryFields?.length).toBe(2);
+
+      const textRetryField = metadata?.retryFields?.find(f => f.name === 'textRetryCount');
+      expect(textRetryField).toBeDefined();
+      expect(textRetryField?.displayName).toBe('文本重试');
+
+      const imageRetryField = metadata?.retryFields?.find(f => f.name === 'imageRetryCount');
+      expect(imageRetryField).toBeDefined();
+      expect(imageRetryField?.displayName).toBe('图片重试');
+    });
+
+    it('should have retryFields in translation metadata', () => {
+      const metadata = WorkflowRegistry.getMetadata('translation');
+
+      expect(metadata?.retryFields).toBeDefined();
+      expect(metadata?.retryFields?.length).toBe(1);
+      expect(metadata?.retryFields?.[0].name).toBe('translationRetryCount');
+      expect(metadata?.retryFields?.[0].displayName).toBe('翻译重试');
+    });
   });
 
   describe('Workflow factory methods', () => {

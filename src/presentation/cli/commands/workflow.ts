@@ -199,23 +199,44 @@ workflowCommand
         console.log();
       }
 
-      // 参数信息
-      if (metadata.requiredParams && metadata.requiredParams.length > 0) {
-        console.log(chalk.white.bold('✅ 必需参数'));
+      // 参数详情
+      if (metadata.paramDefinitions && metadata.paramDefinitions.length > 0) {
+        console.log(chalk.white.bold('📋 参数详情'));
         console.log(chalk.gray('─'.repeat(60)));
-        metadata.requiredParams.forEach((param) => {
-          console.log(chalk.cyan(`  • ${param}`));
-        });
-        console.log();
-      }
 
-      if (metadata.optionalParams && metadata.optionalParams.length > 0) {
-        console.log(chalk.white.bold('⚙️  可选参数'));
-        console.log(chalk.gray('─'.repeat(60)));
-        metadata.optionalParams.forEach((param) => {
-          console.log(chalk.gray(`  • ${param}`));
+        metadata.paramDefinitions.forEach(param => {
+          const required = param.required ? chalk.red('必选') : chalk.gray('可选');
+          console.log(chalk.white(`  • ${param.name}`));
+          console.log(chalk.gray(`      类型: ${param.type}`));
+          console.log(chalk.gray(`      必需: ${required}`));
+          console.log(chalk.gray(`      描述: ${param.description}`));
+          if (param.defaultValue !== undefined) {
+            console.log(chalk.gray(`      默认值: ${param.defaultValue}`));
+          }
+          if (param.examples && param.examples.length > 0) {
+            console.log(chalk.gray(`      示例: ${param.examples.join(', ')}`));
+          }
+          console.log();
         });
-        console.log();
+      } else {
+        // 兼容旧格式（简单的参数列表）
+        if (metadata.requiredParams && metadata.requiredParams.length > 0) {
+          console.log(chalk.white.bold('✅ 必需参数'));
+          console.log(chalk.gray('─'.repeat(60)));
+          metadata.requiredParams.forEach((param) => {
+            console.log(chalk.cyan(`  • ${param}`));
+          });
+          console.log();
+        }
+
+        if (metadata.optionalParams && metadata.optionalParams.length > 0) {
+          console.log(chalk.white.bold('⚙️  可选参数'));
+          console.log(chalk.gray('─'.repeat(60)));
+          metadata.optionalParams.forEach((param) => {
+            console.log(chalk.gray(`  • ${param}`));
+          });
+          console.log();
+        }
       }
 
       // 使用示例

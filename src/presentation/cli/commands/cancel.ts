@@ -8,7 +8,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import { createSyncExecutor } from '../../../application/workflow/SyncExecutor.js';
-import { PostgresTaskRepository } from '../../../infrastructure/database/PostgresTaskRepository.js';
+import { createTaskRepository } from '../../../infrastructure/database/index.js';
 import { getStatusText, printSeparator } from '../utils/formatter.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
@@ -21,7 +21,7 @@ export const cancelCommand = new Command('cancel')
     const spinner = ora('处理中...').start();
 
     try {
-      const taskRepo = new PostgresTaskRepository();
+      const taskRepo = createTaskRepository();
       const executor = createSyncExecutor(taskRepo);
 
       // 检查任务是否存在

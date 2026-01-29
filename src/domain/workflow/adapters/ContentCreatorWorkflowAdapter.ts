@@ -238,6 +238,65 @@ export class ContentCreatorWorkflowAdapter implements WorkflowFactory<WorkflowSt
           },
         },
       ],
+      // 新增：详细参数定义
+      paramDefinitions: [
+        {
+          name: 'topic',
+          description: '文章主题',
+          type: 'string',
+          required: true,
+          examples: ['人工智能技术发展', '区块链原理'],
+        },
+        {
+          name: 'requirements',
+          description: '创作要求',
+          type: 'string',
+          required: true,
+          examples: ['写一篇2000字的科普文章'],
+        },
+        {
+          name: 'targetAudience',
+          description: '目标受众',
+          type: 'string',
+          required: false,
+          defaultValue: '普通读者',
+        },
+        {
+          name: 'keywords',
+          description: '关键词列表（逗号分隔）',
+          type: 'array',
+          required: false,
+          examples: ['AI,机器学习,深度学习'],
+        },
+        {
+          name: 'tone',
+          description: '语气风格',
+          type: 'string',
+          required: false,
+          defaultValue: '专业',
+          examples: ['专业', '轻松', '幽默'],
+        },
+        {
+          name: 'hardConstraints',
+          description: '硬性约束（JSON 格式）',
+          type: 'object',
+          required: false,
+        },
+      ],
+      // 步骤名称映射
+      stepNames: {
+        'search': '搜索内容',
+        'organize': '组织信息',
+        'write': '撰写内容',
+        'check_text': '文本质检',
+        'generate_image': '生成配图',
+        'check_image': '图片质检',
+      },
+      // 重试计数字段
+      retryFields: [
+        { name: 'textRetryCount', displayName: '文本重试' },
+        { name: 'imageRetryCount', displayName: '图片重试' },
+      ],
     };
   }
 

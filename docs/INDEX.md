@@ -25,6 +25,10 @@
 - [翻译工作流指南](./guides/translation-workflow-guide.md) - 翻译工作流使用
 - [工作流适配器使用](./guides/workflow-adapter-usage.md) - 适配器模式说明
 
+### 💻 CLI 相关
+- [CLI 参考手册](./cli-reference.md) - 命令行工具完整参考
+- [多工作流 CLI 优化设计](./cli/multi-workflow-cli-optimization.md) - CLI 统一多工作流支持方案
+
 ### 🔄 工作流扩展
 - [扩展设计文档](./workflow-extension-design.md) - 扩展架构设计
 - [扩展实现总结](./workflow/workflow-extension-SUMMARY.md) - 实现总结

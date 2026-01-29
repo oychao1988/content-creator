@@ -756,6 +756,52 @@ export class TranslationWorkflowFactory implements WorkflowFactory<TranslationSt
           },
         },
       ],
+      // 新增：详细参数定义
+      paramDefinitions: [
+        {
+          name: 'sourceText',
+          description: '待翻译的文本',
+          type: 'string',
+          required: true,
+        },
+        {
+          name: 'sourceLanguage',
+          description: '源语言代码（如 en, zh, ja）',
+          type: 'string',
+          required: true,
+          examples: ['en', 'zh', 'ja'],
+        },
+        {
+          name: 'targetLanguage',
+          description: '目标语言代码（如 en, zh, ja）',
+          type: 'string',
+          required: true,
+          examples: ['en', 'zh', 'ja'],
+        },
+        {
+          name: 'translationStyle',
+          description: '翻译风格',
+          type: 'string',
+          required: false,
+          examples: ['formal', 'casual', 'technical'],
+        },
+        {
+          name: 'domain',
+          description: '专业领域',
+          type: 'string',
+          required: false,
+          examples: ['technology', 'medical', 'legal'],
+        },
+      ],
+      // 步骤名称映射
+      stepNames: {
+        'translate': '翻译',
+        'checkQuality': '质检',
+      },
+      // 重试计数字段
+      retryFields: [
+        { name: 'translationRetryCount', displayName: '翻译重试' },
+      ],
     };
   }
 }

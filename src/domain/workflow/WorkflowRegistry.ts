@@ -34,6 +34,20 @@ export interface WorkflowParams {
 }
 
 /**
+ * 参数定义接口
+ */
+export interface ParamDefinition {
+  name: string;                    // 参数名 (camelCase)
+  description: string;             // 参数描述
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object';  // 参数类型
+  required: boolean;               // 是否必需
+  defaultValue?: any;              // 默认值
+  validation?: (value: any) => boolean;  // 自定义验证函数
+  cliFlags?: string;               // 自定义 CLI flags (可选，默认使用 kebab-case 转换)
+  examples?: string[];             // 参数示例值
+}
+
+/**
  * 工作流元数据
  */
 export interface WorkflowMetadata {
@@ -50,6 +64,15 @@ export interface WorkflowMetadata {
   requiredParams?: string[];      // 必需参数列表
   optionalParams?: string[];      // 可选参数列表
   examples?: WorkflowExample[];   // 使用示例
+
+  // 新增字段
+  paramDefinitions?: ParamDefinition[];  // 详细的参数定义
+  stepNames?: Record<string, string>;    // 步骤名称映射（步骤ID -> 显示名称）
+  retryFields?: {                  // 重试计数字段
+    name: string;                  // 重试字段名（如 'translationRetryCount'）
+    displayName: string;           // 显示名称（如 '翻译重试'）
+  }[];
+  resultDisplay?: (result: any, console: any) => void;  // 结果展示函数
 }
 
 /**
