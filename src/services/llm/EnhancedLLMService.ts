@@ -274,7 +274,7 @@ export class EnhancedLLMService {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 60000, // 60 秒超时
+        timeout: config.llm.timeout, // 使用配置的超时时间
       }
     );
 
@@ -308,7 +308,7 @@ export class EnhancedLLMService {
           'Content-Type': 'application/json',
         },
         responseType: 'stream',
-        timeout: 120000, // 流式请求超时时间更长
+        timeout: config.llm.streamTimeout, // 使用配置的流式超时时间
       }
     );
 

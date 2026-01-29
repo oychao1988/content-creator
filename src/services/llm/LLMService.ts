@@ -162,7 +162,7 @@ export class LLMService {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
-          timeout: 60000, // 60 秒超时
+          timeout: config.llm.timeout, // 使用配置的超时时间
         }
       );
 

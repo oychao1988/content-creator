@@ -121,6 +121,7 @@ export class GenerateImageNode extends BaseNode {
         ],
         taskId: '', // 这里没有 taskId，使用空字符串
         stepName: 'generateImagePrompts',
+        stream: true, // 启用流式请求
       });
 
       // 3. 解析 JSON 响应

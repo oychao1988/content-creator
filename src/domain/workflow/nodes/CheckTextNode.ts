@@ -153,7 +153,7 @@ export class CheckTextNode extends BaseNode {
     super({
       name: 'checkText',
       retryCount: 2,
-      timeout: 60000, // 60 秒超时
+      timeout: 180000, // 180 秒超时（2次流式请求：评分 + 建议）
     });
 
     // 测试环境下使用更宽松的质检标准
@@ -300,6 +300,7 @@ export class CheckTextNode extends BaseNode {
       ],
       taskId: state.taskId,
       stepName: 'checkText',
+      stream: true, // 启用流式请求
     });
 
     // 3. 解析 JSON 响应
@@ -504,6 +505,7 @@ export class CheckTextNode extends BaseNode {
           ],
           taskId: state.taskId,
           stepName: 'checkText',
+          stream: true, // 启用流式请求
         });
 
         let content = result.content.trim();

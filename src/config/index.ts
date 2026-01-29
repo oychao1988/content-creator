@@ -43,6 +43,8 @@ const envSchema = z.object({
   LLM_MAX_TOKENS: z.coerce.number().int().positive().default(4000),
   LLM_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.7),
   LLM_ENABLE_CACHE: z.coerce.boolean().default(true).optional(),
+  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(60000), // LLM 请求超时（毫秒）
+  LLM_STREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(120000), // LLM 流式请求超时（毫秒）
 
   // Tavily API (MCP Search)
   TAVILY_API_KEY: z.string().min(1),
@@ -270,6 +272,8 @@ class Config {
       maxTokens: this.env.LLM_MAX_TOKENS,
       temperature: this.env.LLM_TEMPERATURE,
       enableCache: this.env.LLM_ENABLE_CACHE ?? true,
+      timeout: this.env.LLM_TIMEOUT_MS,
+      streamTimeout: this.env.LLM_STREAM_TIMEOUT_MS,
     };
   }
 

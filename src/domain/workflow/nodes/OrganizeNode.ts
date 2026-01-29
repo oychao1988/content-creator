@@ -85,7 +85,7 @@ export class OrganizeNode extends BaseNode {
     super({
       name: 'organize',
       retryCount: 2,
-      timeout: 60000, // 60 秒超时（LLM 调用可能较慢）
+      timeout: 150000, // 150 秒超时（考虑流式请求 + 重试）
     });
 
     this.config = {
@@ -153,6 +153,7 @@ export class OrganizeNode extends BaseNode {
       ],
       taskId: state.taskId,
       stepName: 'organize',
+      stream: true, // 启用流式请求
     });
 
     // 3. 解析 JSON 响应

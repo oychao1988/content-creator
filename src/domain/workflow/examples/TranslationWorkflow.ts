@@ -72,7 +72,7 @@ class TranslateNode extends BaseNode<TranslationState> {
     super({
       name: 'translate',
       retryCount: config.maxRetries ?? 2,
-      timeout: 120000, // 120秒超时
+      timeout: 150000, // 150 秒超时（考虑流式请求 + 重试）
     });
   }
 
@@ -138,6 +138,7 @@ ${state.domain ? `5. 符合${state.domain}领域的专业术语` : ''}
       ],
       taskId: state.taskId,
       stepName: 'translate',
+      stream: true, // 启用流式请求
     });
 
     logger.info('Translation completed', {
@@ -266,7 +267,7 @@ class TranslationQualityNode extends BaseNode<TranslationState> {
     super({
       name: 'checkQuality',
       retryCount: 1,
-      timeout: 60000, // 60秒超时
+      timeout: 150000, // 150 秒超时（考虑流式请求）
     });
 
     const isTestEnvironment = process.env.NODE_ENV === 'test';
@@ -350,6 +351,7 @@ ${state.translatedText}
       ],
       taskId: state.taskId,
       stepName: 'checkQuality',
+      stream: true, // 启用流式请求
     });
 
     // 解析 LLM 响应
