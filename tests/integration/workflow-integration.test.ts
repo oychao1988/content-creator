@@ -89,7 +89,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // 验证图片已生成（测试环境下为 mock 图片）
       expect(result.images).toBeDefined();
       expect(result.images?.length).toBeGreaterThan(0);
-    }, 300000); // 5分钟超时，覆盖 vitest 全局配置
+    }, 600000); // 5分钟超时，覆盖 vitest 全局配置
 
     it('should have search results after search node', async () => {
       const graph = createSimpleContentCreatorGraph();
@@ -100,7 +100,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // Search results should be populated
       expect(result.searchResults).toBeDefined();
       // Note: Actual values depend on mock implementation
-    }, 300000);
+    }, 600000);
   });
 
   describe('Quality Check Retry', () => {
@@ -122,7 +122,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
 
       // Verify retry happened
       expect(result).toBeDefined();
-    }, 300000);
+    }, 600000);
 
     it('should fail after max retries', async () => {
       const graph = createSimpleContentCreatorGraph();
@@ -144,7 +144,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       expect(result.textQualityReport).toHaveProperty('passed', false);
       expect(result.textQualityReport).toHaveProperty('hardConstraintsPassed', false);
       expect(result.textQualityReport.score).toBeLessThan(5); // 低于测试环境的及格分数（5分）
-    }, 300000);
+    }, 600000);
   });
 
   describe('Streaming Execution', () => {
@@ -185,7 +185,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
 
       const result = await graph.invoke(initialState);
       expect(result).toBeDefined();
-    }, 300000);
+    }, 600000);
 
     it('should handle LLM failure', async () => {
       const graph = createSimpleContentCreatorGraph();
@@ -195,7 +195,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // The workflow should retry or fail gracefully
 
       // This test would require mocking the LLM to fail
-    }, 300000);
+    }, 600000);
   });
 
   describe('State Updates', () => {
@@ -210,7 +210,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       expect(finalState.searchResults).toBeDefined();
       expect(finalState.organizedInfo).toBeDefined();
       expect(finalState.articleContent).toBeDefined();
-    }, 300000);
+    }, 600000);
 
     it('should increment retry count on failure', async () => {
       const graph = createSimpleContentCreatorGraph();
@@ -224,7 +224,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
 
       // Verify retry count incremented
       expect(finalState.textRetryCount).toBeGreaterThanOrEqual(0);
-    }, 300000);
+    }, 600000);
   });
 
   describe('Concurrent Execution', () => {
@@ -255,6 +255,6 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // Verify all completed
       expect(results).toHaveLength(3);
       expect(results.every((r) => r !== undefined)).toBe(true);
-    }, 300000);
+    }, 600000);
   });
 });

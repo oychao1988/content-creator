@@ -50,7 +50,7 @@ export abstract class BaseNode<TState extends BaseWorkflowState = BaseWorkflowSt
   constructor(config: NodeConfig) {
     this.name = config.name;
     this.retryCount = config.retryCount ?? 0;
-    this.timeout = config.timeout ?? 60000; // 60 秒默认超时
+    this.timeout = config.timeout ?? 300000; // 300 秒默认超时
     this.logger = createLogger(`Node:${this.name}`);
   }
 

@@ -7,10 +7,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { LLMEvaluator } from '../../src/services/quality/LLMEvaluator.js';
 
-// Mock LLMService
-vi.mock('../../src/services/llm/LLMService.js', () => ({
-  llmService: {
-    generateTextWithUsage: vi.fn(),
+// Mock EnhancedLLMService
+vi.mock('../../src/services/llm/EnhancedLLMService.js', () => ({
+  enhancedLLMService: {
+    chat: vi.fn(),
   },
 }));
 
@@ -21,7 +21,7 @@ describe('LLMEvaluator', () => {
   beforeEach(async () => {
     evaluator = new LLMEvaluator();
     // 动态导入 mock 的模块
-    mockLLMService = (await import('../../src/services/llm/LLMService.js')).llmService;
+    mockLLMService = (await import('../../src/services/llm/EnhancedLLMService.js')).enhancedLLMService;
   });
 
   afterEach(() => {
@@ -44,8 +44,8 @@ describe('LLMEvaluator', () => {
         reasoning: '整体质量良好',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: {
           promptTokens: 500,
           completionTokens: 300,
@@ -86,8 +86,8 @@ describe('LLMEvaluator', () => {
 }
 \`\`\``;
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -112,8 +112,8 @@ describe('LLMEvaluator', () => {
         reasoning: '质量一般',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -126,7 +126,7 @@ describe('LLMEvaluator', () => {
     });
 
     it('应该处理 LLM 服务错误', async () => {
-      mockLLMService.generateTextWithUsage.mockRejectedValue(
+      mockLLMService.chat.mockRejectedValue(
         new Error('LLM service error')
       );
 
@@ -139,7 +139,7 @@ describe('LLMEvaluator', () => {
     });
 
     it('应该处理无效的 JSON 响应', async () => {
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
+      mockLLMService.chat.mockResolvedValue({
         text: '这不是有效的 JSON',
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
@@ -168,8 +168,8 @@ describe('LLMEvaluator', () => {
         reasoning: '良好',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -185,7 +185,7 @@ describe('LLMEvaluator', () => {
       expect(results[0].score).toBe(8.0);
       expect(results[1].score).toBe(8.0);
       expect(results[2].score).toBe(8.0);
-      expect(mockLLMService.generateTextWithUsage).toHaveBeenCalledTimes(3);
+      expect(mockLLMService.chat).toHaveBeenCalledTimes(3);
     });
   });
 
@@ -205,8 +205,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -232,8 +232,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -258,8 +258,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -288,8 +288,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -337,8 +337,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: {
           promptTokens: 500,
           completionTokens: 300,
@@ -370,8 +370,8 @@ describe('LLMEvaluator', () => {
         reasoning: '内容为空',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -396,8 +396,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -405,9 +405,14 @@ describe('LLMEvaluator', () => {
 
       expect(result).toBeDefined();
       // 检查是否截断了内容
-      expect(mockLLMService.generateTextWithUsage).toHaveBeenCalledWith(
-        expect.stringContaining('内容已截断'),
-        expect.any(String)
+      expect(mockLLMService.chat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: expect.arrayContaining([
+            expect.objectContaining({
+              content: expect.stringContaining('内容已截断')
+            })
+          ])
+        })
       );
     });
 
@@ -427,8 +432,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -454,8 +459,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -473,8 +478,8 @@ describe('LLMEvaluator', () => {
         suggestions: ['建议'],
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 
@@ -500,8 +505,8 @@ describe('LLMEvaluator', () => {
         reasoning: '测试',
       });
 
-      mockLLMService.generateTextWithUsage.mockResolvedValue({
-        text: mockResponse,
+      mockLLMService.chat.mockResolvedValue({
+        content: mockResponse,
         usage: { promptTokens: 500, completionTokens: 300, totalTokens: 800 },
       });
 

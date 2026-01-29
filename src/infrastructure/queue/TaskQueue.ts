@@ -96,7 +96,12 @@ export class TaskQueue {
         ...options,
       });
     } catch (error) {
-      logger.warn('Failed to create TaskQueue, disabling queue', { error: error instanceof Error ? error.message : String(error) });
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      logger.error('Failed to create TaskQueue, disabling queue', {
+        error: errorMessage,
+        stack: errorStack,
+      });
       this.enabled = false;
       this.queue = null;
     }

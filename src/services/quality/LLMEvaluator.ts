@@ -298,7 +298,7 @@ ${truncatedContent}
     } catch (error) {
       logger.warn('Failed to parse LLM response, using default values', {
         error: (error as Error).message,
-        response: response.substring(0, 200),
+        response: response ? response.substring(0, 200) : 'empty response',
       });
 
       // 解析失败时返回默认值
