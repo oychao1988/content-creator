@@ -98,8 +98,10 @@ export class MemoryQualityCheckCache implements IQualityCheckCache {
     // 如果缓存已满，删除最旧的条目
     if (this.cache.size >= this.maxSize) {
       const firstKey = this.cache.keys().next().value;
-      this.cache.delete(firstKey);
-      logger.debug('Cache full, evicted oldest entry', { key: firstKey });
+      if (firstKey) {
+        this.cache.delete(firstKey);
+        logger.debug('Cache full, evicted oldest entry', { key: firstKey });
+      }
     }
 
     this.cache.set(key, {
@@ -148,13 +150,13 @@ export class RedisQualityCheckCache implements IQualityCheckCache {
     });
   }
 
-  async get(key: string): Promise<QualityReport | null> {
+  async get(_key: string): Promise<QualityReport | null> {
     // TODO: 实现 Redis 缓存
     logger.warn('Redis cache not implemented, using no-op');
     return null;
   }
 
-  async set(key: string, value: QualityReport): Promise<void> {
+  async set(_key: string, _value: QualityReport): Promise<void> {
     // TODO: 实现 Redis 缓存
     logger.warn('Redis cache not implemented, ignoring set');
   }

@@ -192,8 +192,10 @@ export class CheckImageNode extends BaseNode {
 
     try {
       // ========== 阶段二优化：自动生成图片 ==========
-      // 1. 检查是否有图片
-      if (!state.images || state.images.length === 0) {
+      // 1. 检查是否有图片，如果没有则生成
+      let imagesToCheck = state.images;
+      let generatedImages: any = null;
+      if (!imagesToCheck || imagesToCheck.length === 0) {
         logger.info('No images found, generating images first', {
           taskId: state.taskId,
         });
@@ -207,11 +209,12 @@ export class CheckImageNode extends BaseNode {
 
         logger.info('Images generated, proceeding to quality check', {
           taskId: state.taskId,
-          imageCount: generateResult.images?.length || 0,
+          imageCount: (generateResult as any).images?.length || 0,
         });
 
-        // 更新 state
-        state = { ...state, ...generateResult } as WorkflowState;
+        // 使用生成的图片
+        imagesToCheck = (generateResult as any).images || [];
+        generatedImages = generateResult;
       }
 
       // 测试环境下直接返回默认质检报告，避免 LLM 调用
@@ -223,7 +226,7 @@ export class CheckImageNode extends BaseNode {
           passed: true,
           hardConstraintsPassed: true,
           details: {
-            imageScores: state.images.map((_, index) => ({
+            imageScores: (imagesToCheck || []).map((_, index) => ({
               imageIndex: index,
               score: 8.0,
               details: {
@@ -242,9 +245,14 @@ export class CheckImageNode extends BaseNode {
         };
       }
 
-      // 2. 评估所有图片
+      // 2. 验证有图片后再评估
+      if (!imagesToCheck || imagesToCheck.length === 0) {
+        throw new Error('No images found after generation');
+      }
+
+      // 3. 评估所有图片
       const imageReports = await Promise.all(
-        state.images.map(async (image) => {
+        imagesToCheck.map(async (image) => {
           try {
             return await this.evaluateImage(
               image.url,
@@ -272,16 +280,16 @@ export class CheckImageNode extends BaseNode {
         })
       );
 
-      // 3. 计算平均分
+      // 4. 计算平均分
       const totalScore = imageReports.reduce((sum, r) => sum + r.score, 0);
       const avgScore = totalScore / imageReports.length;
 
-      // 4. 收集所有改进建议
+      // 5. 收集所有改进建议
       const allFixSuggestions = imageReports.flatMap(
         (r) => r.fixSuggestions || []
       );
 
-      // 5. 构建质检详情
+      // 6. 构建质检详情
       const details: QualityCheckDetails = {
         imageScores: imageReports.map((r, index) => ({
           imageIndex: index,
@@ -290,10 +298,10 @@ export class CheckImageNode extends BaseNode {
         })),
       };
 
-      // 6. 判断是否通过
+      // 7. 判断是否通过
       const passed = avgScore >= this.config.minPassingScore!;
 
-      // 7. 构建质检报告
+      // 8. 构建质检报告
       const qualityReport: QualityReport = {
         score: avgScore,
         passed,
@@ -315,6 +323,12 @@ export class CheckImageNode extends BaseNode {
       const result: Partial<WorkflowState> = {
         imageQualityReport: qualityReport,
       };
+
+      // 如果生成了新图片，需要在返回值中包含它们
+      if (generatedImages && generatedImages.images && generatedImages.images.length > 0) {
+        result.images = generatedImages.images;
+        result.imagePrompts = generatedImages.imagePrompts;
+      }
 
       if (!passed) {
         result.imageRetryCount = (state.imageRetryCount || 0) + 1;
