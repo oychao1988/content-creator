@@ -21,108 +21,57 @@ interface WriteNodeConfig {
 
 /**
  * 初始写作 Prompt 模板
+ *
+ * 优化：精简 prompt，减少 token 消耗，提升响应速度
  */
-const WRITE_PROMPT = `你是一位专业的内容创作者。根据以下信息撰写一篇文章：
+const WRITE_PROMPT = `根据信息撰写文章，Markdown格式。
 
-【主题】{topic}
+主题：{topic}
+要求：{requirements}
 
-【要求】{requirements}
+⚠️ 字数要求（最高优先级）：{minWords}-{maxWords}字
+关键词：{keywords}
 
-【⚠️ 字数要求 - 必须严格遵守】
-- 最少字数：{minWords} 字
-- 最多字数：{maxWords} 字
-- 字数范围：{minWords}-{maxWords} 字
+资料：
+- 搜索结果：{searchResults}
+- 大纲：{outline}
+- 关键点：{keyPoints}
 
-【必须包含的关键词】
-{keywords}
+要求：
+1. 字数严格在{minWords}-{maxWords}之间
+2. 原创、逻辑清晰、语言流畅
+3. 包含标题/导语/正文/结语
+4. 自然融入所有关键词
 
-【参考资料】
-1. 搜索结果：
-{searchResults}
-
-2. 文章大纲：
-{outline}
-
-3. 关键点：
-{keyPoints}
-
-【写作要求】
-请撰写一篇完整的文章，务必确保：
-
-1. ⚠️ 字数控制是最高优先级要求
-   - 如果字数不足 {minWords}，需要补充内容
-   - 如果字数超过 {maxWords}，必须精简内容
-   - 字数必须严格控制在 {minWords}-{maxWords} 之间
-
-2. 内容要求
-   - 内容原创，不抄袭
-   - 逻辑清晰，条理分明
-   - 语言流畅，表达准确
-
-3. 结构要求
-   - 包含标题、导语、正文、结语
-   - 参考大纲结构，但可以根据内容需要灵活调整
-
-4. 关键词要求
-   - 必须包含所有指定关键词：{keywords}
-   - 关键词要自然融入文章内容
-
-【输出格式】
-以 Markdown 格式输出完整文章。
-
-【⚠️ 重要提醒】
-请在生成文章后：
-1. 检查字数是否在 {minWords}-{maxWords} 范围内
-2. 如果字数不符合要求，请调整内容长度
-3. 字数不符合要求将被视为不合格作品
+输出：Markdown完整文章
 `;
 
 /**
  * 重写 Prompt 模板（有质检反馈时）
+ *
+ * 优化：精简 prompt，减少 token 消耗，提升响应速度
  */
-const REWRITE_PROMPT = `你是一位专业的内容创作者。根据以下质检反馈，修改上一版文章：
+const REWRITE_PROMPT = `根据质检反馈修改文章，输出Markdown。
 
-【🚨 字数问题 - 最高优先级】
+🚨 字数问题（最高优先级）：
 {hasWordCountIssue}
 {wordCountFeedback}
 
-【⚠️ 字数要求 - 必须满足】
-- 目标字数范围：{minWords} - {maxWords} 字
-- 上次字数未达标，本次必须解决！
+⚠️ 目标：{minWords}-{maxWords}字
+策略：{strategy}
 
-【字数调整策略】
-{strategy}
+其他反馈：{fixSuggestions}
 
-【其他质检反馈】
-{fixSuggestions}
+要求：
+1. 必须解决字数问题（{minWords}-{maxWords}之间）
+2. 修复其他问题，保持核心观点
+3. 包含所有关键词：{keywords}
+4. 保持逻辑连贯
 
-【修改要求】
-优先级顺序：
-1. ⚠️⚠️⚠️ 字数调整（最高优先级，必须解决）
-   - 如果上面标注了字数不足/超出，必须严格按照建议调整
-   - 字数必须在 {minWords}-{maxWords} 范围内
-   - 宁可超出也不要不足（但超出不能超过 {maxWords}）
-
-2. 其他问题修复
-   - 根据其他质检反馈修改有问题的部分
-   - 保持文章的核心观点和关键信息
-   - 保持文章的整体风格和连贯性
-
-3. 关键词要求
-   - 必须包含所有关键词：{keywords}
-   - 关键词要自然融入文章内容
-
-【上一版文章】
+原文章：
 {previousContent}
 
-【🚨 重要提醒】
-修改完成后请自检：
-1. ✅ 字数是否在 {minWords}-{maxWords} 范围内？← 最重要！
-2. ✅ 是否解决了所有字数问题？
-3. ✅ 是否包含了所有关键词？
-4. ✅ 文章逻辑是否连贯？
-
-请直接输出修改后的完整文章（Markdown 格式），不要添加任何额外说明。
+输出：修改后的完整Markdown文章，无额外说明
 `;
 
 /**

@@ -33,46 +33,26 @@ interface OrganizeNodeConfig {
 
 /**
  * Organize Node Prompt 模板
+ *
+ * 优化：精简 prompt，减少 token 消耗，提升响应速度
  */
-const ORGANIZE_PROMPT = `你是一位专业的内容策划。请根据以下搜索结果，整理出文章的大纲和关键点。
+const ORGANIZE_PROMPT = `根据搜索结果整理文章大纲和关键点，返回JSON。
 
-【选题】{topic}
+选题：{topic}
+要求：{requirements}
 
-【要求】{requirements}
-
-【搜索结果】
+搜索结果：
 {searchResults}
 
-请按以下格式输出：
+输出：
+1. outline：Markdown大纲（#主标题 ##章节 ###小节）
+2. keyPoints：{minKeyPoints}-{maxKeyPoints}个关键点（50-100字/个）
+3. summary：摘要（{minSummaryLength}-{maxSummaryLength}字）
 
-1. **文章大纲**（Markdown 格式）
-   - 使用一级标题（#）作为主标题
-   - 使用二级标题（##）作为章节
-   - 使用三级标题（###）作为小节
-   - 每个章节下简要说明该部分要写的内容
+格式：
+{"outline":"# 标题\n\n## 章节1\n内容...","keyPoints":["关键点1","关键点2"],"summary":"摘要"}
 
-2. **关键点列表**（{minKeyPoints}-{maxKeyPoints} 个）
-   - 每个关键点 50-100 字
-   - 提炼文章的核心观点
-   - 确保逻辑连贯
-
-3. **摘要**（{minSummaryLength}-{maxSummaryLength} 字）
-   - 概括文章核心内容
-   - 包含文章的主要观点
-   - 语言简洁明了
-
-请以 JSON 格式返回：
-{
-  "outline": "完整大纲（Markdown 格式）",
-  "keyPoints": ["关键点1", "关键点2", ...],
-  "summary": "文章摘要"
-}
-
-注意：
-1. 大纲必须使用 Markdown 格式
-2. 关键点数量必须在 {minKeyPoints}-{maxKeyPoints} 之间
-3. 摘要长度必须在 {minSummaryLength}-{maxSummaryLength} 字之间
-4. 只返回 JSON，不要有其他内容
+要求：纯JSON，Markdown格式，数量和长度符合要求
 `;
 
 /**

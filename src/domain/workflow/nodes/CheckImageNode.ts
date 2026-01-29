@@ -29,48 +29,25 @@ interface ImageQualityCheckOutput {
 
 /**
  * 质检 Prompt 模板
+ *
+ * 优化：精简 prompt，减少 token 消耗，提升响应速度
  */
-const CHECK_IMAGE_PROMPT = `你是一位专业的图片审核专家。请评估以下配图的质量。
+const CHECK_IMAGE_PROMPT = `评估图片质量并返回JSON。
 
-【配图信息】
-图片 URL: {imageUrl}
-提示词: {prompt}
-文章主题: {topic}
+图片URL：{imageUrl}
+提示词：{prompt}
+主题：{topic}
 
-请从以下维度评估（每项 1-10 分）：
+评分（1-10分）：
+- relevanceScore：与主题相关性
+- aestheticScore：美学质量
+- promptMatch：提示词匹配度
 
-1. **相关性**（relevanceScore）：图片与文章内容/主题的相关性
-2. **美学质量**（aestheticScore）：构图、色彩、清晰度等美学指标
-3. **提示词匹配**（promptMatch）：图片是否符合提示词描述的要求
+格式：
+{"score":8.0,"passed":true,"details":{"relevanceScore":8.5,"aestheticScore":7.5,"promptMatch":8.0},"fixSuggestions":["建议1"]}
 
-注意：由于你无法直接看到图片，请基于：
-- 提示词的描述质量
-- URL 中可能包含的信息
-- 与主题的关联性
-
-进行评估。
-
-请以 JSON 格式返回：
-{
-  "score": 8.0,
-  "passed": true,
-  "details": {
-    "relevanceScore": 8.5,
-    "aestheticScore": 7.5,
-    "promptMatch": 8.0
-  },
-  "fixSuggestions": ["建议1"]
-}
-
-评分标准：
-- 9-10 分：优秀，无需改进
-- 7-8 分：良好，可以使用
-- 5-6 分：一般，建议优化
-- 1-4 分：较差，需要重新生成
-
-注意：
-1. 只返回 JSON，不要有其他内容
-2. 如果分数低于 7 分，提供具体的改进建议
+标准：9-10优秀，7-8良好，5-6一般，1-4差
+要求：纯JSON，<7分需提建议
 `;
 
 /**

@@ -33,28 +33,25 @@ interface GenerateImageNodeConfig {
 
 /**
  * 图片提示词生成 Prompt 模板
+ *
+ * 优化：精简 prompt，减少 token 消耗，提升响应速度
  */
-const GENERATE_IMAGE_PROMPTS_PROMPT = `你是一位专业的配图策划。根据以下文章内容，生成 {maxPrompts} 个配图提示词。
+const GENERATE_IMAGE_PROMPTS_PROMPT = `根据文章生成{maxPrompts}个配图提示词，返回JSON数组。
 
-【文章主题】{topic}
+主题：{topic}
 
-【文章内容】
+内容：
 {articleContent}
 
 要求：
-1. 每个提示词描述一个独立的配图场景
-2. 简洁明了（50 字以内）
-3. 适合 AI 图片生成（描述视觉元素、风格、氛围）
-4. 与文章内容相关且美观
-5. 避免文字内容，只描述画面
+- 描述独立场景（50字内）
+- 适合AI图片生成（视觉元素/风格/氛围）
+- 与内容相关，无文字
 
-请以 JSON 数组格式返回：
-["提示词1", "提示词2", "提示词3"]
+格式：
+["提示词1","提示词2","提示词3"]
 
-注意：
-1. 只返回 JSON 数组，不要有其他内容
-2. 提示词数量必须是 {maxPrompts} 个
-3. 每个提示词 50 字以内
+要求：纯JSON数组，{maxPrompts}个，每条50字内
 `;
 
 /**
@@ -184,7 +181,7 @@ export class GenerateImageNode extends BaseNode {
   /**
    * 生成图片
    */
-  private async generateImages(prompts: string[]): Promise<GeneratedImage[]> {
+  private async generateImages(prompts: string[], taskId: string): Promise<GeneratedImage[]> {
     if (!this.config.useImageGeneration) {
       const isTestEnvironment = process.env.NODE_ENV === 'test';
       logger.info('Image generation is disabled, returning mock images', {
@@ -223,8 +220,24 @@ export class GenerateImageNode extends BaseNode {
               model: result.model,
             });
 
+            // 下载图片到本地
+            let localPath: string | undefined;
+            try {
+              const filename = imageService.generateImageFilename(taskId, index, 'png');
+              localPath = await imageService.downloadImage(result.imageUrl, filename);
+              logger.info(`Image ${index + 1} downloaded successfully`, {
+                localPath,
+              });
+            } catch (downloadError) {
+              logger.warn(`Failed to download image ${index + 1}`, {
+                error: downloadError instanceof Error ? downloadError.message : String(downloadError),
+              });
+              // 下载失败不影响主流程，图片仍然可用（通过云端 URL）
+            }
+
             return {
               url: result.imageUrl,
+              localPath,
               prompt,
               width: 1024,
               height: 1024,
@@ -287,8 +300,8 @@ export class GenerateImageNode extends BaseNode {
         });
       }
 
-      // 3. 生成图片
-      const images = await this.generateImages(imagePrompts);
+      // 3. 生成图片（并下载到本地）
+      const images = await this.generateImages(imagePrompts, state.taskId);
 
       // 4. 检查是否至少有一张图片生成成功
       if (images.length === 0) {
@@ -305,6 +318,7 @@ export class GenerateImageNode extends BaseNode {
       logger.info('Image generation completed successfully', {
         taskId: state.taskId,
         imageCount: images.length,
+        downloadedCount: images.filter(img => img.localPath).length,
       });
 
       return {

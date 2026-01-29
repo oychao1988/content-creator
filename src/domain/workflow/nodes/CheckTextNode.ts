@@ -78,56 +78,28 @@ interface LLMQualityCheckOutput {
 
 /**
  * 质检 Prompt 模板
+ *
+ * 优化：精简 prompt，减少 token 消耗，提升响应速度
  */
-const CHECK_PROMPT = `你是一位专业的内容审核专家。请对以下文章进行质量评估。
+const CHECK_PROMPT = `评估文章质量并返回JSON。
 
-【文章内容】
+内容：
 {articleContent}
 
-【硬性约束】
-- 字数：{minWords} - {maxWords} 字
-- 必须包含关键词：{keywords}
+约束：字数 {minWords}-{maxWords}，关键词：{keywords}
 
-请从以下维度评估（每项 1-10 分）：
+评分维度（1-10分）：
+- relevance（相关性）
+- coherence（连贯性）
+- completeness（完整性）
+- readability（可读性）
 
-1. **相关性**（relevance）：内容是否切题
-2. **连贯性**（coherence）：逻辑是否通顺
-3. **完整性**（completeness）：结构是否完整
-4. **可读性**（readability）：语言是否流畅
+硬规则检查：字数、关键词、结构（标题/导语/正文/结语）
 
-硬规则检查：
-- 字数是否符合要求？
-- 是否包含所有关键词？
-- 是否有标题、导语、正文、结语？
+返回格式：
+{"score":8.5,"passed":true,"hardConstraintsPassed":true,"details":{"hardRules":{"passed":true,"wordCount":{"passed":true,"wordCount":1200},"keywords":{"passed":true,"found":["AI"],"required":["AI"]},"structure":{"passed":true,"checks":{"hasTitle":true,"hasIntro":true,"hasBody":true,"hasConclusion":true}}},"softScores":{"relevance":{"score":9,"reason":"内容切题"},"coherence":{"score":8,"reason":"逻辑通顺"},"completeness":{"score":8.5,"reason":"结构完整"},"readability":{"score":8,"reason":"语言流畅"}}},"fixSuggestions":["建议1"]}
 
-请以 JSON 格式返回：
-{
-  "score": 8.5,
-  "passed": true,
-  "hardConstraintsPassed": true,
-  "details": {
-    "hardRules": {
-      "passed": true,
-      "wordCount": { "passed": true, "wordCount": 1200 },
-      "keywords": { "passed": true, "found": ["AI", "技术", "发展"], "required": ["AI", "技术", "发展"] },
-      "structure": { "passed": true, "checks": { "hasTitle": true, "hasIntro": true, "hasBody": true, "hasConclusion": true } }
-    },
-    "softScores": {
-      "relevance": { "score": 9, "reason": "内容完全切题" },
-      "coherence": { "score": 8, "reason": "逻辑基本通顺" },
-      "completeness": { "score": 8.5, "reason": "结构完整" },
-      "readability": { "score": 8, "reason": "语言流畅" }
-    }
-  },
-  "fixSuggestions": ["建议1", "建议2"]
-}
-
-重要要求：
-1. 只返回纯 JSON，不要有任何其他文字或说明
-2. 所有数值必须是纯数字（如 1200），不要包含中文（如"约1200"或"1200字"）
-3. hardRules.passed 必须基于实际的硬规则检查
-4. softScores 每项分数在 1-10 之间
-5. 如果有问题，提供具体的改进建议
+要求：纯JSON，无额外文字，数值用数字
 `;
 
 /**
