@@ -7,6 +7,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { WorkflowRegistry, getWorkflowMetadata } from '../../../domain/workflow/WorkflowRegistry.js';
+import { ensureWorkflowsInitialized } from '../../../domain/workflow/initialize.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 import { printSeparator } from '../utils/formatter.js';
 
@@ -27,6 +28,9 @@ workflowCommand
   .option('--json', '以 JSON 格式输出')
   .action(async (options) => {
     try {
+      // 确保工作流已初始化
+      ensureWorkflowsInitialized();
+
       // 检查 WorkflowRegistry 是否已初始化
       if (!WorkflowRegistry.isInitialized()) {
         console.log(chalk.yellow('⚠️  工作流注册表尚未初始化'));
@@ -125,6 +129,9 @@ workflowCommand
   .option('--json', '以 JSON 格式输出')
   .action(async (type: string, options) => {
     try {
+      // 确保工作流已初始化
+      ensureWorkflowsInitialized();
+
       // 检查工作流是否存在
       if (!WorkflowRegistry.has(type)) {
         console.error(chalk.red(`❌ 错误: 未找到工作流类型 "${type}"`));
