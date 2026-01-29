@@ -34,20 +34,22 @@
 - [扩展进度](./workflow/WORKFLOW-EXTENSION-PROGRESS.md) - 实施进度
 - [架构阶段2](./workflow/workflow-architecture-stage2.md) - 第二阶段架构
 - [架构阶段3](./workflow/workflow-architecture-stage3.md) - 第三阶段架构
+> ⚠️ **注**: 扩展进度文档（WORKFLOW-EXTENSION-PROGRESS.md）为本地参考
 
 ### 🛠️ 开发相关
 - [测试实现计划](./development/test-implementation-PLAN.md) - 测试实现计划
 - [测试实现总结](./development/test-implementation-SUMMARY.md) - 测试实现总结
 - [数据库重构计划](./development/database-refactoring-PLAN.md) - 数据库重构计划
 - [数据库重构总结](./development/database-refactoring-SUMMARY.md) - 数据库重构总结
+> ⚠️ **注**: 以上开发文档为本地参考，未纳入 git 版本控制
 
 ### 📊 项目报告
 - [项目完成报告](./reports/PROJECT-COMPLETION-REPORT.md) - 项目完成总结
 - [阶段4完成报告](./reports/STAGE-4-COMPLETION-REPORT.md) - 阶段4总结
 - [阶段6完成报告](./reports/STAGE6-COMPLETION-REPORT.md) - 阶段6总结
 - [测试修复报告](./reports/TEST-FIX-REPORT.md) - 测试问题修复
-- [NPM 发布清单](./reports/NPM-PUBLISH-CHECKLIST.md) - 发布检查清单
 - [超时测试报告](./timeout-test-report.md) - 超时配置测试
+> ⚠️ **注**: 报告文档为本地参考，未纳入 git 版本控制
 
 ### 📚 参考资料
 - [BullMQ 快速参考](./references/bullmq-quick-reference.md) - BullMQ 使用
@@ -80,8 +82,8 @@
 3. 📖 [工作流适配器使用](./guides/workflow-adapter-usage.md)
 
 ### 项目管理
-1. 📊 [项目完成报告](./reports/PROJECT-COMPLETION-REPORT.md)
-2. 📊 [各阶段完成报告](./reports/)
+1. 📊 [项目完成报告](./reports/PROJECT-COMPLETION-REPORT.md) - 本地参考
+2. 📊 [各阶段完成报告](./reports/) - 本地参考
 3. 📊 [工作流扩展计划](./workflow/WORKFLOW-EXTENSION-PLAN.md)
 
 ---
@@ -125,14 +127,28 @@
 - 代码示例应包含必要的说明
 
 ### 文档分类规则
-- **快速开始**: 入门和用户指南
-- **架构**: 系统设计和架构文档
-- **配置**: 环境配置和部署
-- **指南**: 操作指南和教程
-- **开发**: 开发计划和实现总结
-- **报告**: 项目报告和测试报告
-- **参考资料**: 技术参考文档
-- **归档**: 历史文档和分析
+- **快速开始**: 入门和用户指南（✅ 纳入版本控制）
+- **架构**: 系统设计和架构文档（✅ 纳入版本控制）
+- **配置**: 环境配置和部署（✅ 纳入版本控制）
+- **指南**: 操作指南和教程（✅ 纳入版本控制）
+- **开发**: 开发计划和实现总结（⚠️ 本地参考）
+- **报告**: 项目报告和测试报告（⚠️ 本地参考）
+- **参考资料**: 技术参考文档（✅ 纳入版本控制）
+- **归档**: 历史文档和分析（✅ 纳入版本控制）
+
+### 版本控制说明
+**纳入版本控制的文档**：
+- 用户文档（快速开始、用户指南、CLI参考）
+- 架构文档（系统设计、工作流架构）
+- 技术指南（扩展指南、参考手册）
+- 配置说明
+
+**本地参考文档**（未纳入版本控制）：
+- 项目进度报告（reports/）
+- 开发计划文档（development/）
+- 实施进度记录（WORKFLOW-EXTENSION-PROGRESS.md）
+
+> 💡 **原因**: 这些文档是项目进行过程中的临时记录，会频繁更新，不适合纳入 git 历史。
 
 ### 更新文档
 更新文档时请确保：
@@ -140,6 +156,7 @@
 2. 更新本导航页面的链接
 3. 在文档顶部注明更新日期
 4. 遵循现有的文档格式
+5. 对于正式文档，提交到 git；对于临时文档，保留在本地即可
 
 ---
 
