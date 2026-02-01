@@ -311,7 +311,7 @@ export class SyncExecutor {
           taskId,
           resultType: 'image',
           content: JSON.stringify(state.images.map(img => ({
-            url: img.url,
+            url: img.localPath || img.url,  // 优先使用本地路径
             prompt: img.prompt,
             width: img.width,
             height: img.height,
@@ -322,6 +322,27 @@ export class SyncExecutor {
           },
         });
         logger.info('Image results saved', { taskId, count: state.images.length });
+      }
+
+      // 保存最终文章内容（图片占位符已替换）
+      if (state.finalArticleContent && this.resultRepo) {
+        logger.info('Saving final article content', {
+          taskId,
+          hasPlaceholders: state.finalArticleContent.includes('image-placeholder-'),
+          length: state.finalArticleContent.length,
+        });
+        await this.resultRepo.create({
+          taskId,
+          resultType: 'finalArticle',
+          content: state.finalArticleContent,
+          metadata: {
+            wordCount: state.finalArticleContent.length,
+            generatedAt: new Date().toISOString(),
+            hasImages: state.images && state.images.length > 0,
+            imageCount: state.images?.length || 0,
+          },
+        });
+        logger.info('Final article result saved', { taskId });
       }
 
       // 保存质量检查结果

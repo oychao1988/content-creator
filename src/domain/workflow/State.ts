@@ -51,7 +51,8 @@ export interface QualityReport {
  * 图片生成结果
  */
 export interface GeneratedImage {
-  url: string;              // 图片 URL
+  url: string;              // 图片 URL（云端地址）
+  localPath?: string;       // 本地保存路径
   prompt: string;           // 使用的提示词
   width?: number;           // 宽度
   height?: number;          // 高度
@@ -90,13 +91,16 @@ export interface WorkflowState extends BaseWorkflowState {
   organizedInfo?: OrganizedInfo;         // 整理后的信息
 
   // 写作阶段
-  articleContent?: string;               // 文章内容（Markdown）
+  articleContent?: string;               // 文章内容（Markdown，包含图片占位符）
   previousContent?: string;              // 上一版内容（用于重写）
   imagePrompts?: string[];               // 配图提示词列表
 
   // 配图阶段
   images?: GeneratedImage[];             // 生成的配图列表
   previousImages?: GeneratedImage[];     // 上一版配图（用于重生成）
+
+  // 后处理阶段
+  finalArticleContent?: string;          // 最终文章内容（图片占位符已替换为实际地址）
 
   // 质检阶段
   textQualityReport?: QualityReport;     // 文本质检报告

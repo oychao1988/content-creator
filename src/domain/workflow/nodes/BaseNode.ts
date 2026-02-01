@@ -222,6 +222,109 @@ export abstract class BaseNode<TState extends BaseWorkflowState = BaseWorkflowSt
   }
 
   /**
+   * 从 LLM 输出中提取 JSON
+   *
+   * 处理以下情况：
+   * 1. Markdown 代码块（```json 或 ```）
+   * 2. JSON 前后的额外文字说明
+   * 3. 提取第一个完整的 JSON 对象
+   *
+   * @param content - LLM 返回的内容
+   * @returns 提取出的 JSON 字符串
+   * @throws Error 如果无法找到有效的 JSON
+   */
+  protected extractJSON(content: string): string {
+    let text = content.trim();
+
+    // 1. 去除 Markdown 代码块标记
+    if (text.startsWith('```json')) {
+      text = text.slice(7);
+    } else if (text.startsWith('```')) {
+      text = text.slice(3);
+    }
+    if (text.endsWith('```')) {
+      text = text.slice(0, -3);
+    }
+    text = text.trim();
+
+    // 2. 尝试直接解析（如果内容本身就是纯 JSON）
+    try {
+      JSON.parse(text);
+      return text;
+    } catch {
+      // 不是纯 JSON，继续尝试提取
+    }
+
+    // 3. 查找第一个 { 或 [ 的位置
+    const startIndex = text.indexOf('{');
+    const arrayIndex = text.indexOf('[');
+
+    let jsonStart = -1;
+    if (startIndex !== -1 && arrayIndex !== -1) {
+      jsonStart = Math.min(startIndex, arrayIndex);
+    } else if (startIndex !== -1) {
+      jsonStart = startIndex;
+    } else if (arrayIndex !== -1) {
+      jsonStart = arrayIndex;
+    }
+
+    if (jsonStart === -1) {
+      throw new Error('No JSON object found in content');
+    }
+
+    // 4. 查找匹配的结束括号
+    let bracketCount = 0;
+    let inString = false;
+    let escapeNext = false;
+    let jsonEnd = -1;
+
+    for (let i = jsonStart; i < text.length; i++) {
+      const char = text[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{' || char === '[') {
+          bracketCount++;
+        } else if (char === '}' || char === ']') {
+          bracketCount--;
+          if (bracketCount === 0) {
+            jsonEnd = i + 1;
+            break;
+          }
+        }
+      }
+    }
+
+    if (jsonEnd === -1) {
+      throw new Error('Incomplete JSON object found');
+    }
+
+    const extracted = text.substring(jsonStart, jsonEnd);
+
+    // 5. 验证提取的内容是否是有效的 JSON
+    try {
+      JSON.parse(extracted);
+      return extracted;
+    } catch (error) {
+      throw new Error(`Extracted content is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
    * 转换为 LangGraph 节点
    *
    * @returns LangGraph 节点函数
@@ -308,6 +411,109 @@ export class NodeContext {
         error: error instanceof Error ? error.message : String(error),
       });
       return fallback;
+    }
+  }
+
+  /**
+   * 从 LLM 输出中提取 JSON
+   *
+   * 处理以下情况：
+   * 1. Markdown 代码块（```json 或 ```）
+   * 2. JSON 前后的额外文字说明
+   * 3. 提取第一个完整的 JSON 对象
+   *
+   * @param content - LLM 返回的内容
+   * @returns 提取出的 JSON 字符串
+   * @throws Error 如果无法找到有效的 JSON
+   */
+  protected extractJSON(content: string): string {
+    let text = content.trim();
+
+    // 1. 去除 Markdown 代码块标记
+    if (text.startsWith('```json')) {
+      text = text.slice(7);
+    } else if (text.startsWith('```')) {
+      text = text.slice(3);
+    }
+    if (text.endsWith('```')) {
+      text = text.slice(0, -3);
+    }
+    text = text.trim();
+
+    // 2. 尝试直接解析（如果内容本身就是纯 JSON）
+    try {
+      JSON.parse(text);
+      return text;
+    } catch {
+      // 不是纯 JSON，继续尝试提取
+    }
+
+    // 3. 查找第一个 { 或 [ 的位置
+    const startIndex = text.indexOf('{');
+    const arrayIndex = text.indexOf('[');
+
+    let jsonStart = -1;
+    if (startIndex !== -1 && arrayIndex !== -1) {
+      jsonStart = Math.min(startIndex, arrayIndex);
+    } else if (startIndex !== -1) {
+      jsonStart = startIndex;
+    } else if (arrayIndex !== -1) {
+      jsonStart = arrayIndex;
+    }
+
+    if (jsonStart === -1) {
+      throw new Error('No JSON object found in content');
+    }
+
+    // 4. 查找匹配的结束括号
+    let bracketCount = 0;
+    let inString = false;
+    let escapeNext = false;
+    let jsonEnd = -1;
+
+    for (let i = jsonStart; i < text.length; i++) {
+      const char = text[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{' || char === '[') {
+          bracketCount++;
+        } else if (char === '}' || char === ']') {
+          bracketCount--;
+          if (bracketCount === 0) {
+            jsonEnd = i + 1;
+            break;
+          }
+        }
+      }
+    }
+
+    if (jsonEnd === -1) {
+      throw new Error('Incomplete JSON object found');
+    }
+
+    const extracted = text.substring(jsonStart, jsonEnd);
+
+    // 5. 验证提取的内容是否是有效的 JSON
+    try {
+      JSON.parse(extracted);
+      return extracted;
+    } catch (error) {
+      throw new Error(`Extracted content is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 

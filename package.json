@@ -67,7 +67,13 @@
     "example:ts": "tsx src/examples/workflow-adapter-demo.ts",
     "example:translation": "tsx src/examples/translation-workflow-example.ts",
     "example:js": "node examples/workflow-example.js",
-    "example:py": "python3 examples/workflow-example.py"
+    "example:py": "python3 examples/workflow-example.py",
+    "test:image-download": "tsx scripts/test-image-download.ts",
+    "test:image-only": "tsx scripts/test-image-only.ts",
+    "test:llm": "tsx scripts/test-llm.ts",
+    "test:llm:api": "tsx scripts/test-api-llm.ts",
+    "test:llm:cli": "tsx scripts/test-cli-llm.ts",
+    "test:llm:quick": "tsx scripts/quick-llm-test.ts"
   },
   "keywords": [
     "ai",

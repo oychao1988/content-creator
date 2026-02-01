@@ -11,3 +11,4 @@ export * from './WriteNode.js';
 export * from './CheckTextNode.js';
 export * from './GenerateImageNode.js';
 export * from './CheckImageNode.js';
+export * from './PostProcessNode.js';

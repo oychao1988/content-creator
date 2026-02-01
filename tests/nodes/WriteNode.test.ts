@@ -47,6 +47,7 @@ describe('WriteNode', () => {
       const state = createTestInitialState({
         organizedInfo: createMockOrganizedInfo(),
         searchResults: createMockSearchResults(),
+        taskId: 'test-error-writing', // 包含 'error-' 以触发实际的 LLM 调用
       });
 
       const result = await writeNode.executeLogic(state);
@@ -78,6 +79,7 @@ describe('WriteNode', () => {
           minWords: 100,
           maxWords: 1000,
         },
+        taskId: 'test-error-wordcount', // 包含 'error-' 以触发实际的 LLM 调用
       });
 
       const result = await writeNode.executeLogic(state);
@@ -258,6 +260,7 @@ describe('WriteNode', () => {
       const state = createTestInitialState({
         organizedInfo: createMockOrganizedInfo(),
         searchResults: createMockSearchResults(),
+        taskId: 'test-error-handling', // 包含 'error-' 以触发实际的 LLM 调用
       });
 
       await expect(writeNode.executeLogic(state)).rejects.toThrow('LLM API error');
@@ -281,6 +284,7 @@ describe('WriteNode', () => {
         hardConstraints: {
           minWords: 100, // Requires at least 100 characters
         },
+        taskId: 'test-error-short', // 包含 'error-' 以触发实际的 LLM 调用
       });
 
       // 注意：WriteNode 不再抛出验证错误，只输出警告
@@ -308,6 +312,7 @@ describe('WriteNode', () => {
         hardConstraints: {
           keywords: ['MISSING_KEYWORD'],
         },
+        taskId: 'test-error-keywords', // 包含 'error-' 以触发实际的 LLM 调用
       });
 
       // 注意：WriteNode 不再抛出验证错误，只输出警告
