@@ -58,6 +58,14 @@ const envSchema = z.object({
   LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(60000), // LLM 请求超时（毫秒）
   LLM_STREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(120000), // LLM 流式请求超时（毫秒）
 
+  // LLM 服务类型配置
+  LLM_SERVICE_TYPE: z.enum(['api', 'cli']).default('api'), // LLM 服务类型：api 或 cli
+
+  // Claude CLI 配置
+  CLAUDE_CLI_ENABLED: z.coerce.boolean().default(false).optional(), // 是否启用 CLI
+  CLAUDE_CLI_DEFAULT_MODEL: z.enum(['sonnet', 'opus']).default('sonnet'), // CLI 默认模型
+  CLAUDE_CLI_DEFAULT_TIMEOUT: z.coerce.number().int().positive().default(120000), // CLI 默认超时（毫秒）
+
   // Tavily API (MCP Search)
   TAVILY_API_KEY: z.string().min(1),
 
@@ -286,6 +294,23 @@ class Config {
       enableCache: this.env.LLM_ENABLE_CACHE ?? true,
       timeout: this.env.LLM_TIMEOUT_MS,
       streamTimeout: this.env.LLM_STREAM_TIMEOUT_MS,
+    };
+  }
+
+  // ========== LLM 服务类型配置 ==========
+
+  get llmServiceType(): 'api' | 'cli' {
+    return this.env.LLM_SERVICE_TYPE;
+  }
+
+  // ========== Claude CLI 配置 ==========
+
+  get claudeCLI() {
+    return {
+      enabled: this.env.CLAUDE_CLI_ENABLED || this.env.LLM_SERVICE_TYPE === 'cli',
+      defaultModel: this.env.CLAUDE_CLI_DEFAULT_MODEL,
+      defaultTimeout: this.env.CLAUDE_CLI_DEFAULT_TIMEOUT,
+      enableMCP: false, // TODO: 从环境变量读取
     };
   }
 

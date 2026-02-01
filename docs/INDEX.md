@@ -16,6 +16,8 @@
 - [工作流架构](./workflow-architecture.md) - 工作流系统设计
 - [质检架构](./quality-check-architecture.md) - 质量检查系统
 - [存储指南](./storage-guide.md) - 存储服务使用
+- [Claude CLI LLM 服务设计](./claude-cli-llm-service-design.md) - LLM 服务架构
+- [Claude CLI LLM 实现总结](./claude-cli-llm-implementation-summary.md) - 实现总结
 
 ### 🔧 配置相关
 - [配置系统更新](./configuration/config-system-update.md) - 配置系统说明
@@ -110,6 +112,9 @@
 
 **了解质量检查**
 → 查看 [质检架构](./quality-check-architecture.md)
+
+**了解 LLM 服务**
+→ 查看 [Claude CLI LLM 服务设计](./claude-cli-llm-service-design.md)
 
 **配置系统**
 → 查看 [配置系统更新](./configuration/config-system-update.md)

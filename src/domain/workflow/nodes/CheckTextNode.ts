@@ -9,10 +9,10 @@ import { BaseNode, type NodeResult } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
 import type { QualityReport } from '../State.js';
 import type { QualityCheckDetails } from '../../entities/QualityCheck.js';
+import type { ILLMService } from '../../../services/llm/ILLMService.js';
 import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 import { createQualityCheckCache, type IQualityCheckCache, generateCacheKey } from '../../../infrastructure/cache/QualityCheckCache.js';
-import { config } from '../../../config/index.js';
 
 const logger = createLogger('CheckTextNode');
 
@@ -117,6 +117,7 @@ interface CheckTextNodeConfig {
     readability: number;
   };
   enableCache?: boolean; // 是否启用缓存
+  llmService?: ILLMService; // LLM 服务（可注入）
 }
 
 /**
@@ -125,6 +126,7 @@ interface CheckTextNodeConfig {
 export class CheckTextNode extends BaseNode {
   private config: CheckTextNodeConfig;
   private cache: IQualityCheckCache;
+  private llmService: ILLMService;
 
   constructor(config: CheckTextNodeConfig = {}) {
     super({
@@ -145,8 +147,12 @@ export class CheckTextNode extends BaseNode {
         readability: 0.2,
       },
       enableCache: config.enableCache !== false, // 默认启用缓存
+      llmService: undefined, // 默认使用 enhancedLLMService
       ...config,
     };
+
+    // 初始化 LLM 服务（注入或使用默认）
+    this.llmService = this.config.llmService || enhancedLLMService;
 
     // 初始化缓存
     this.cache = createQualityCheckCache({
@@ -340,7 +346,7 @@ export class CheckTextNode extends BaseNode {
     const systemMessage =
       '你是一位专业的内容审核专家。请严格按照 JSON 格式返回。';
 
-    const result = await enhancedLLMService.chat({
+    const result = await this.llmService.chat({
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: prompt },

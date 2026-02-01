@@ -7,6 +7,7 @@
 import { BaseNode } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
 import type { OrganizedInfo } from '../State.js';
+import type { ILLMService } from '../../../services/llm/ILLMService.js';
 import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
@@ -29,6 +30,7 @@ interface OrganizeNodeConfig {
   minKeyPoints?: number;
   maxSummaryLength?: number;
   minSummaryLength?: number;
+  llmService?: ILLMService; // LLM 服务（可注入）
 }
 
 /**
@@ -60,6 +62,7 @@ const ORGANIZE_PROMPT = `根据搜索结果整理文章大纲和关键点，返�
  */
 export class OrganizeNode extends BaseNode {
   private config: OrganizeNodeConfig;
+  private llmService: ILLMService;
 
   constructor(config: OrganizeNodeConfig = {}) {
     super({
@@ -73,8 +76,12 @@ export class OrganizeNode extends BaseNode {
       minKeyPoints: 3,
       maxSummaryLength: 150,
       minSummaryLength: 100,
+      llmService: undefined, // 默认使用 enhancedLLMService
       ...config,
     };
+
+    // 初始化 LLM 服务（注入或使用默认）
+    this.llmService = this.config.llmService || enhancedLLMService;
   }
 
   /**
@@ -142,7 +149,7 @@ export class OrganizeNode extends BaseNode {
     const systemMessage =
       '你是一位专业的内容策划。请严格按照要求输出 JSON 格式，不要包含任何其他内容。';
 
-    const result = await enhancedLLMService.chat({
+    const result = await this.llmService.chat({
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: prompt },
