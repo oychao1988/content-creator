@@ -18,6 +18,7 @@ import {
   checkTextNode,
   generateImageNode,
   checkImageNode,
+  postProcessNode,
 } from './nodes/index.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 
@@ -26,7 +27,9 @@ const logger = createLogger('ContentCreatorGraph');
 /**
  * 文本质检后的路由函数
  *
- * 阶段二优化：直接跳到 checkImage（checkImage 会自动生成图片）
+ * 优化后流程：write 生成 articleContent + imagePrompts
+ * → generate_image 使用 imagePrompts 生成 images
+ * → checkImage 检查 images 质量并提供建议
  */
 function routeAfterCheckText(state: WorkflowState): string {
   logger.debug('Routing after check text', {
@@ -35,13 +38,14 @@ function routeAfterCheckText(state: WorkflowState): string {
     retryCount: state.textRetryCount,
   });
 
-  // 如果质检通过，直接跳到图片质检（checkImage 会自动生成图片）
+  // 如果质检通过，生成配图（使用 WriteNode 生成的 imagePrompts）
   if (state.textQualityReport?.passed) {
-    logger.info('Text quality check passed, proceeding to image quality check (auto-generate if needed)', {
+    logger.info('Text quality check passed, proceeding to image generation', {
       taskId: state.taskId,
       score: state.textQualityReport.score,
+      imagePromptCount: state.imagePrompts?.length || 0,
     });
-    return 'checkImage';  // ✅ 阶段二优化：跳过 generate_image 节点
+    return 'generate_image';  // 使用 WriteNode 生成的 imagePrompts 生成图片
   }
 
   // 如果质检失败但重试次数未满，重试写作
@@ -72,13 +76,14 @@ function routeAfterCheckImage(state: WorkflowState): string {
     retryCount: state.imageRetryCount,
   });
 
-  // 如果质检通过，结束
+  // 如果质检通过，进行后处理（替换图片占位符）
   if (state.imageQualityReport?.passed) {
-    logger.info('Image quality check passed, workflow completed', {
+    logger.info('Image quality check passed, proceeding to post-processing', {
       taskId: state.taskId,
       score: state.imageQualityReport.score,
+      imageCount: state.images?.length || 0,
     });
-    return '__end__';
+    return 'post_process';  // 后处理节点替换图片占位符
   }
 
   // 如果质检失败但重试次数未满，重试生成配图
@@ -149,6 +154,7 @@ export function createContentCreatorGraph(): any {
   const checkTextNodeFn = checkTextNode.toLangGraphNode();
   const generateImageNodeFn = generateImageNode.toLangGraphNode();
   const checkImageNodeFn = checkImageNode.toLangGraphNode();
+  const postProcessNodeFn = postProcessNode.toLangGraphNode();
 
   // 包装节点以添加检查点保存
   const searchNodeWithCheckpoint = wrapNodeWithCheckpoint('search', searchNodeFn);
@@ -168,6 +174,10 @@ export function createContentCreatorGraph(): any {
   const checkImageNodeWithCheckpoint = wrapNodeWithCheckpoint(
     'checkImage',
     checkImageNodeFn
+  );
+  const postProcessNodeWithCheckpoint = wrapNodeWithCheckpoint(
+    'postProcess',
+    postProcessNodeFn
   );
 
   // 创建 StateGraph
@@ -229,6 +239,10 @@ export function createContentCreatorGraph(): any {
       imagePrompts: {
         default: () => undefined,
         reducer: (x?: string[], y?: string[]) => y ?? x,
+      },
+      finalArticleContent: {
+        default: () => undefined,
+        reducer: (x?: string, y?: string) => y ?? x,
       },
       previousContent: {
         default: () => undefined,
@@ -280,6 +294,7 @@ export function createContentCreatorGraph(): any {
   graph.addNode('checkText', checkTextNodeWithCheckpoint);
   graph.addNode('generate_image', generateImageNodeWithCheckpoint);
   graph.addNode('checkImage', checkImageNodeWithCheckpoint);
+  graph.addNode('post_process', postProcessNodeWithCheckpoint);
 
   // 设置入口点和边（线性流程）
   graph.addEdge(START as any, 'search');
@@ -294,13 +309,16 @@ export function createContentCreatorGraph(): any {
   // 注意: checkImage 的出边由条件边控制，不要添加默认边
   // graph.addEdge('checkImage', END); // 已移除，避免与条件边冲突
 
+  // 后处理节点到结束的边
+  graph.addEdge('post_process' as any, END);
+
   // 添加条件边（文本质检后的路由）
   graph.addConditionalEdges(
     'checkText' as any,
     routeAfterCheckText,
     {
       write: 'write',
-      checkImage: 'checkImage',  // ✅ 阶段二优化：直接路由到 checkImage
+      generate_image: 'generate_image',  // 使用 WriteNode 生成的 imagePrompts 生成图片
     }
   );
 
@@ -310,7 +328,7 @@ export function createContentCreatorGraph(): any {
     routeAfterCheckImage,
     {
       generate_image: 'generate_image',
-      __end__: END,
+      post_process: 'post_process',  // 后处理节点替换图片占位符
     }
   );
 
@@ -333,6 +351,7 @@ export function createSimpleContentCreatorGraph(): any {
   const checkTextNodeFn = checkTextNode.toLangGraphNode();
   const generateImageNodeFn = generateImageNode.toLangGraphNode();
   const checkImageNodeFn = checkImageNode.toLangGraphNode();
+  const postProcessNodeFn = postProcessNode.toLangGraphNode();
 
   // 创建 StateGraph
   const graph = new StateGraph<WorkflowState>({
@@ -393,6 +412,10 @@ export function createSimpleContentCreatorGraph(): any {
       imagePrompts: {
         default: () => undefined,
         reducer: (x?: string[], y?: string[]) => y ?? x,
+      },
+      finalArticleContent: {
+        default: () => undefined,
+        reducer: (x?: string, y?: string) => y ?? x,
       },
       previousContent: {
         default: () => undefined,
@@ -450,6 +473,7 @@ export function createSimpleContentCreatorGraph(): any {
   graph.addNode('checkText', checkTextNodeFn);
   graph.addNode('generate_image', generateImageNodeFn);
   graph.addNode('checkImage', checkImageNodeFn);
+  graph.addNode('post_process', postProcessNodeFn);
 
   // 设置入口点和边
   graph.addEdge(START as any, 'search');
@@ -457,22 +481,24 @@ export function createSimpleContentCreatorGraph(): any {
   graph.addEdge('organize' as any, 'write');
   graph.addEdge('write' as any, 'checkText');
   // 注意: checkText 的出边由条件边控制，不要添加默认边
-  // 阶段二优化：checkText 直接路由到 checkImage，checkImage 会自动生成图片
-  // graph.addEdge('checkText', 'checkImage'); // 已通过条件边实现
-  // generate_image 节点只在 checkImage 失败重试时使用
+  // 优化后流程：checkText → generate_image → checkImage
+  // graph.addEdge('checkText', 'generate_image'); // 已通过条件边实现
   graph.addEdge('generate_image' as any, 'checkImage');
   // 注意: checkImage 的出边由条件边控制，不要添加默认边
   // graph.addEdge('checkImage', END); // 已移除，避免与条件边冲突
 
+  // 后处理节点到结束的边
+  graph.addEdge('post_process' as any, END);
+
   // 添加条件边
   graph.addConditionalEdges('checkText' as any, routeAfterCheckText, {
     write: 'write',
-    checkImage: 'checkImage',  // ✅ 阶段二优化：直接路由到 checkImage
+    generate_image: 'generate_image',  // 使用 WriteNode 生成的 imagePrompts 生成图片
   });
 
   graph.addConditionalEdges('checkImage' as any, routeAfterCheckImage, {
     generate_image: 'generate_image',
-    __end__: END,
+    post_process: 'post_process',  // 后处理节点替换图片占位符
   });
 
   logger.info('Simple content creator workflow graph created successfully');

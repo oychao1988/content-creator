@@ -8,7 +8,8 @@ import { BaseNode } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
 import type { QualityReport } from '../State.js';
 import type { QualityCheckDetails } from '../../entities/QualityCheck.js';
-import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
+import type { ILLMService } from '../../../services/llm/ILLMService.js';
+import { LLMServiceFactory } from '../../../services/llm/LLMServiceFactory.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
 const logger = createLogger('CheckImageNode');
@@ -60,6 +61,7 @@ interface CheckImageNodeConfig {
     aesthetic: number;
     promptMatch: number;
   };
+  llmService?: ILLMService; // LLM 服务（可注入）
 }
 
 /**
@@ -67,6 +69,7 @@ interface CheckImageNodeConfig {
  */
 export class CheckImageNode extends BaseNode {
   private config: CheckImageNodeConfig;
+  private llmService: ILLMService;
 
   constructor(config: CheckImageNodeConfig = {}) {
     super({
@@ -82,8 +85,12 @@ export class CheckImageNode extends BaseNode {
         aesthetic: 0.3,
         promptMatch: 0.3,
       },
+      llmService: undefined, // 默认使用 LLMServiceFactory.create()
       ...config,
     };
+
+    // 初始化 LLM 服务（注入或使用默认）
+    this.llmService = this.config.llmService || LLMServiceFactory.create();
   }
 
   /**
@@ -123,7 +130,7 @@ export class CheckImageNode extends BaseNode {
     const systemMessage =
       '你是一位专业的图片审核专家。请严格按照 JSON 格式返回。';
 
-    const result = await enhancedLLMService.chat({
+    const result = await this.llmService.chat({
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: checkPrompt },
@@ -136,19 +143,9 @@ export class CheckImageNode extends BaseNode {
     // 3. 解析 JSON 响应
     let output: ImageQualityCheckOutput;
     try {
-      let content = result.content.trim();
-      if (content.startsWith('```json')) {
-        content = content.slice(7);
-      }
-      if (content.startsWith('```')) {
-        content = content.slice(3);
-      }
-      if (content.endsWith('```')) {
-        content = content.slice(0, -3);
-      }
-      content = content.trim();
-
-      output = JSON.parse(content);
+      // 使用健壮的 JSON 提取方法
+      const jsonContent = this.extractJSON(result.content);
+      output = JSON.parse(jsonContent);
     } catch (error) {
       logger.error('Failed to parse LLM output as JSON', {
         content: result.content.substring(0, 500),

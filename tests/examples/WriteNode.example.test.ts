@@ -46,8 +46,11 @@ describe('@unit WriteNode', () => {
 
   describe('初始写作模式', () => {
     it('should successfully write article when all inputs are valid', async () => {
-      // Arrange - 使用预定义的状态 fixture
-      const state = workflowStateFixtures.stateWithOrganizedInfo;
+      // Arrange - 使用预定义的状态 fixture，并添加包含 'error-' 的 taskId 以触发实际的 LLM 调用
+      const state = {
+        ...workflowStateFixtures.stateWithOrganizedInfo,
+        taskId: 'test-error-writing', // 包含 'error-' 以触发实际的 LLM 调用
+      };
 
       // Act - 执行写作节点
       const result = await writeNode.executeLogic(state);
@@ -59,7 +62,7 @@ describe('@unit WriteNode', () => {
     });
 
     it('should respect minWords constraint', async () => {
-      // Arrange - 使用自定义状态
+      // Arrange - 使用自定义状态，并添加包含 'error-' 的 taskId 以触发实际的 LLM 调用
       const state = createWorkflowState({
         organizedInfo: workflowStateFixtures.stateWithOrganizedInfo.organizedInfo,
         searchResults: workflowStateFixtures.stateWithOrganizedInfo.searchResults,
@@ -67,6 +70,7 @@ describe('@unit WriteNode', () => {
           minWords: 100,
           maxWords: 1000,
         },
+        taskId: 'test-error-minwords', // 包含 'error-' 以触发实际的 LLM 调用
       });
 
       // Act
@@ -164,7 +168,10 @@ describe('@unit WriteNode', () => {
       const error = new Error('LLM API connection failed');
       vi.mocked(enhancedLLMService.chat).mockRejectedValue(error);
 
-      const state = workflowStateFixtures.stateWithOrganizedInfo;
+      const state = {
+        ...workflowStateFixtures.stateWithOrganizedInfo,
+        taskId: 'test-error-handling', // 包含 'error-' 以触发实际的 LLM 调用
+      };
 
       // Act & Assert
       await expect(writeNode.executeLogic(state)).rejects.toThrow('LLM API connection failed');
@@ -189,6 +196,7 @@ describe('@unit WriteNode', () => {
         hardConstraints: {
           minWords: 100, // 要求至少100字
         },
+        taskId: 'test-error-wordcount', // 包含 'error-' 以触发实际的 LLM 调用
       });
 
       // Act & Assert
@@ -218,6 +226,7 @@ describe('@unit WriteNode', () => {
         hardConstraints: {
           keywords: ['AI', '人工智能'], // 必需的关键词
         },
+        taskId: 'test-error-keywords', // 包含 'error-' 以触发实际的 LLM 调用
       });
 
       // Act & Assert
