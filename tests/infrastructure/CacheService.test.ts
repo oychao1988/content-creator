@@ -42,6 +42,16 @@ vi.mock('../../src/infrastructure/redis/connection.js', () => ({
   },
 }));
 
+// Mock MetricsService 模块
+vi.mock('../../src/infrastructure/monitoring/MetricsService.js', () => ({
+  metricsService: {
+    recordCacheHit: vi.fn(),
+    recordCacheMiss: vi.fn(),
+    recordCacheSet: vi.fn(),
+    recordCacheDelete: vi.fn(),
+  },
+}));
+
 describe('CacheService', () => {
   let cacheService: CacheService;
 
