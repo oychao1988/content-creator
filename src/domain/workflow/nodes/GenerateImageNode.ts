@@ -55,14 +55,19 @@ export class GenerateImageNode extends BaseNode {
         isTestEnvironment,
         reason: isTestEnvironment ? 'Test environment detected' : 'Configuration disabled',
       });
-      // 返回模拟图片
-      return prompts.map((prompt) => ({
-        url: `https://example.com/mock-image-${Date.now()}.png`,
-        prompt,
-        width: 1024,
-        height: 1024,
-        format: 'png',
-      }));
+      // 🆕 返回模拟图片，包含本地路径（模拟已下载的状态）
+      return prompts.map((prompt, index) => {
+        const filename = `${taskId}_${index}_${Date.now()}.png`;
+        const mockLocalPath = `data/images/${filename}`;
+        return {
+          url: `https://example.com/mock-image-${Date.now()}.png`,
+          localPath: mockLocalPath,  // 🆕 添加本地路径
+          prompt,
+          width: 1024,
+          height: 1024,
+          format: 'png',
+        };
+      });
     }
 
     logger.info('Generating images', { count: prompts.length });

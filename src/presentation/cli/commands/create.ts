@@ -381,20 +381,23 @@ function displayResult(workflowType: string, result: any, qualityCheckRepo: any)
 
   // Content-Creator 工作流的结果展示
   if (workflowType === 'content-creator') {
-    // 显示生成的内容
-    if (finalState.articleContent) {
+    // 显示生成的内容（优先显示 finalArticleContent，因为占位符已被替换）
+    const contentToDisplay = finalState.finalArticleContent || finalState.articleContent;
+    if (contentToDisplay) {
       console.log(chalk.white.bold('\n📝 生成的内容:'));
       printSeparator();
-      console.log(finalState.articleContent);
+      console.log(contentToDisplay);
       printSeparator();
     }
 
-    // 显示生成的图片
+    // 显示生成的图片（优先显示本地路径）
     if (finalState.images && finalState.images.length > 0) {
       console.log(chalk.white.bold('\n🖼️ 生成的配图:'));
       printSeparator();
       finalState.images.forEach((img: any) => {
-        console.log(chalk.cyan(img.url));
+        // 优先显示本地路径，因为云端URL会过期
+        const imagePath = img.localPath || img.url;
+        console.log(chalk.cyan(imagePath));
       });
       printSeparator();
     }
