@@ -23,7 +23,6 @@ async function quickTest() {
     const result = await llmService.chat({
       messages: [{ role: 'user', content: prompt }],
       stream: true,
-      enableStreamDisplay: true,  // 启用流式显示
     });
     const duration = Date.now() - startTime;
 

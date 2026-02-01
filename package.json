@@ -73,7 +73,9 @@
     "test:llm": "tsx scripts/test-llm.ts",
     "test:llm:api": "tsx scripts/test-api-llm.ts",
     "test:llm:cli": "tsx scripts/test-cli-llm.ts",
-    "test:llm:quick": "tsx scripts/quick-llm-test.ts"
+    "test:llm:quick": "tsx scripts/quick-llm-test.ts",
+    "test:llm:integration": "tsx scripts/test-llm-integration.ts",
+    "test:llm:integration:verbose": "tsx scripts/test-llm-integration.ts --verbose"
   },
   "keywords": [
     "ai",

@@ -61,8 +61,7 @@ const envSchema = z.object({
   // LLM 服务类型配置
   LLM_SERVICE_TYPE: z.enum(['api', 'cli']).default('api'), // LLM 服务类型：api 或 cli
 
-  // Claude CLI 配置
-  CLAUDE_CLI_ENABLED: z.coerce.boolean().default(false).optional(), // 是否启用 CLI
+  // Claude CLI 配置（仅在 LLM_SERVICE_TYPE=cli 时生效）
   CLAUDE_CLI_DEFAULT_MODEL: z.enum(['sonnet', 'opus']).default('sonnet'), // CLI 默认模型
   CLAUDE_CLI_DEFAULT_TIMEOUT: z.coerce.number().int().positive().default(120000), // CLI 默认超时（毫秒）
 
@@ -307,7 +306,7 @@ class Config {
 
   get claudeCLI() {
     return {
-      enabled: this.env.CLAUDE_CLI_ENABLED || this.env.LLM_SERVICE_TYPE === 'cli',
+      enabled: this.env.LLM_SERVICE_TYPE === 'cli',
       defaultModel: this.env.CLAUDE_CLI_DEFAULT_MODEL,
       defaultTimeout: this.env.CLAUDE_CLI_DEFAULT_TIMEOUT,
       enableMCP: false, // TODO: 从环境变量读取

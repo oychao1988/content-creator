@@ -171,6 +171,10 @@ export class MockLLMService {
     };
   }
 
+  async healthCheck(): Promise<boolean> {
+    return true;
+  }
+
   private generateMockResponse(stepName: string, taskId: string): string {
     switch (stepName) {
       case 'organize':
