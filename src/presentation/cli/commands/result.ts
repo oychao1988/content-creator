@@ -91,9 +91,21 @@ export const resultCommand = new Command('result')
               if (result.metadata?.wordCount) {
                 console.log(chalk.gray(`字数: ${result.metadata.wordCount}`));
               }
+            } else if (result.resultType === 'finalArticle') {
+              console.log(chalk.green.bold('最终文章（图片已嵌入）:'));
+              console.log(chalk.white(result.content || '(无内容)'));
+              if (result.metadata?.wordCount) {
+                console.log(chalk.gray(`字数: ${result.metadata.wordCount}`));
+              }
+              if (result.metadata?.imageCount) {
+                console.log(chalk.gray(`图片数量: ${result.metadata.imageCount}`));
+              }
             } else if (result.resultType === 'image') {
               console.log(chalk.white('图片 URL:'));
               console.log(chalk.cyan(result.content || '(无 URL)'));
+            } else {
+              console.log(chalk.white(`${result.resultType}:`));
+              console.log(chalk.gray(result.content || '(无内容)'));
             }
             printSeparator();
           });
@@ -123,9 +135,21 @@ export const resultCommand = new Command('result')
               if (result.metadata?.wordCount) {
                 console.log(chalk.gray(`字数: ${result.metadata.wordCount}`));
               }
+            } else if (result.resultType === 'finalArticle') {
+              console.log(chalk.green.bold('最终文章（图片已嵌入）:'));
+              console.log(chalk.white(result.content || '(无内容)'));
+              if (result.metadata?.wordCount) {
+                console.log(chalk.gray(`字数: ${result.metadata.wordCount}`));
+              }
+              if (result.metadata?.imageCount) {
+                console.log(chalk.gray(`图片数量: ${result.metadata.imageCount}`));
+              }
             } else if (result.resultType === 'image') {
               console.log(chalk.white('图片 URL:'));
               console.log(chalk.cyan(result.content || '(无 URL)'));
+            } else {
+              console.log(chalk.white(`${result.resultType}:`));
+              console.log(chalk.gray(result.content || '(无内容)'));
             }
             printSeparator();
           });

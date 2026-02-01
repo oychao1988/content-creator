@@ -7,7 +7,6 @@
 
 import { BaseNode } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
-import type { ILLMService } from '../../../services/llm/ILLMService.js';
 import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
@@ -18,7 +17,6 @@ const logger = createLogger('WriteNode');
  */
 interface WriteNodeConfig {
   maxRetries?: number;
-  llmService?: ILLMService; // LLM 服务（可注入）
 }
 
 /**
@@ -80,17 +78,12 @@ const REWRITE_PROMPT = `根据质检反馈修改文章，输出Markdown。
  * Write Node 实现
  */
 export class WriteNode extends BaseNode {
-  private llmService: ILLMService;
-
-  constructor(private _config: WriteNodeConfig = {}) {
+  constructor(_config: WriteNodeConfig = {}) {
     super({
       name: 'write',
       retryCount: 1, // 质检失败后会重试，这里设为 1
       timeout: 240000, // 240 秒超时（流式请求 + 重试需要更长时间）
     });
-
-    // 初始化 LLM 服务（注入或使用默认）
-    this.llmService = this._config.llmService || enhancedLLMService;
 
     // Note: config.maxRetries is available but not currently used
     // Retries are controlled by the workflow's checkText node
@@ -380,7 +373,7 @@ ${state.topic}在实际生活中有着广泛的应用场景：
     const systemMessage =
       '你是一位专业的内容创作者。请根据要求撰写高质量的文章。';
 
-    const result = await this.llmService.chat({
+    const result = await enhancedLLMService.chat({
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: prompt },

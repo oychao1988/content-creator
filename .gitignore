@@ -34,6 +34,7 @@ docs/SOURCE-CODE-ANALYSIS.md
 docs/archive/
 .claude/tsc-cache/
 data/content-creator.db*
+data/images/
 test-results/
 test-full-output.log
 

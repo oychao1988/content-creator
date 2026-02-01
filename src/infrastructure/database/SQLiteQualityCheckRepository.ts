@@ -48,9 +48,9 @@ export class SQLiteQualityCheckRepository implements IQualityCheckRepository {
     // 确保 score 是有效的数字
     const safeScore = Number.isFinite(params.score) ? params.score : 0;
 
-    // 确保 passed 和 hardConstraintsPassed 是布尔值
-    const safePassed = Boolean(params.passed);
-    const safeHardConstraintsPassed = Boolean(params.hardConstraintsPassed);
+    // SQLite 不支持 BOOLEAN 类型，需要转换为 0/1
+    const safePassed = params.passed ? 1 : 0;
+    const safeHardConstraintsPassed = params.hardConstraintsPassed ? 1 : 0;
 
     try {
       stmt.run(
@@ -92,8 +92,8 @@ export class SQLiteQualityCheckRepository implements IQualityCheckRepository {
       taskId: row.task_id,
       checkType: row.check_type,
       score: row.score,
-      passed: row.passed,
-      hardConstraintsPassed: row.hard_constraints_passed,
+      passed: Boolean(row.passed),
+      hardConstraintsPassed: Boolean(row.hard_constraints_passed),
       details: row.details ? JSON.parse(row.details) : null,
       fixSuggestions: row.fix_suggestions ? JSON.parse(row.fix_suggestions) : null,
       rubricVersion: row.rubric_version,

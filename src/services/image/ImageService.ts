@@ -7,6 +7,8 @@
  */
 
 import axios, { AxiosError } from 'axios';
+import { promises as fs } from 'fs';
+import { join, dirname } from 'path';
 import { config } from '../../config/index.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 
@@ -179,6 +181,60 @@ export class ImageService {
 
     // 返回成功的结果
     return successful.map((r) => (r as PromiseFulfilledResult<ImageGenerationResponse>).value);
+  }
+
+  /**
+   * 从 URL 下载图片并保存到本地
+   */
+  async downloadImage(imageUrl: string, filename: string): Promise<string> {
+    try {
+      logger.debug('Downloading image', {
+        imageUrl: imageUrl.substring(0, 50) + '...',
+        filename,
+      });
+
+      // 获取存储路径配置
+      const storagePath = config.storage.path || './data/images';
+
+      // 确保目录存在
+      const fullPath = join(storagePath, filename);
+      await fs.mkdir(dirname(fullPath), { recursive: true });
+
+      // 下载图片
+      const response = await axios.get<ArrayBuffer>(imageUrl, {
+        responseType: 'arraybuffer',
+        timeout: 60000, // 1 分钟超时
+      });
+
+      // 保存到本地
+      await fs.writeFile(fullPath, Buffer.from(response.data));
+
+      logger.info('Image downloaded successfully', {
+        filename,
+        path: fullPath,
+        size: Buffer.from(response.data).length,
+      });
+
+      return fullPath;
+    } catch (error) {
+      logger.error('Failed to download image', {
+        imageUrl: imageUrl.substring(0, 50) + '...',
+        filename,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      throw new Error(
+        `Failed to download image from ${imageUrl}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  /**
+   * 生成图片文件名
+   */
+  generateImageFilename(taskId: string, index: number, format: string = 'png'): string {
+    const timestamp = Date.now();
+    return `${taskId}_${index}_${timestamp}.${format}`;
   }
 
   /**
