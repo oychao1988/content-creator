@@ -20,11 +20,20 @@ interface WriteNodeConfig {
 }
 
 /**
+ * Write 输出结构
+ */
+interface WriteOutput {
+  articleContent: string;    // Markdown with image placeholders
+  imagePrompts: string[];    // Array of image generation prompts
+}
+
+/**
  * 初始写作 Prompt 模板
  *
  * 优化：精简 prompt，减少 token 消耗，提升响应速度
+ * 同时生成文章和图片提示词
  */
-const WRITE_PROMPT = `根据信息撰写文章，Markdown格式。
+const WRITE_PROMPT = `根据信息撰写文章并生成配图提示词，返回JSON格式。
 
 主题：{topic}
 要求：{requirements}
@@ -42,16 +51,33 @@ const WRITE_PROMPT = `根据信息撰写文章，Markdown格式。
 2. 原创、逻辑清晰、语言流畅
 3. 包含标题/导语/正文/结语
 4. 自然融入所有关键词
+5. 在合适位置插入2-3个图片占位符
 
-输出：Markdown完整文章
+图片占位符规则：
+- 格式：![图片描述](image-placeholder-N)
+- N从1开始递增（image-placeholder-1, image-placeholder-2...）
+- 描述要简洁（10字内），与段落主题相关
+- 均匀分布：引言后、主要章节后
+
+输出JSON格式（必须严格遵循）：
+{
+  "articleContent": "Markdown文章内容（含占位符）",
+  "imagePrompts": ["提示词1", "提示词2", "提示词3"]
+}
+
+配图提示词要求：
+- 50字内，描述视觉元素/风格/氛围
+- 无文字，适合AI图片生成
+- 与对应占位符位置内容相关
 `;
 
 /**
  * 重写 Prompt 模板（有质检反馈时）
  *
  * 优化：精简 prompt，减少 token 消耗，提升响应速度
+ * 同时修改文章和更新图片提示词
  */
-const REWRITE_PROMPT = `根据质检反馈修改文章，输出Markdown。
+const REWRITE_PROMPT = `根据质检反馈修改文章，输出JSON格式。
 
 🚨 字数问题（最高优先级）：
 {hasWordCountIssue}
@@ -67,11 +93,16 @@ const REWRITE_PROMPT = `根据质检反馈修改文章，输出Markdown。
 2. 修复其他问题，保持核心观点
 3. 包含所有关键词：{keywords}
 4. 保持逻辑连贯
+5. 保留或调整图片占位符（如果有图片问题）
 
 原文章：
 {previousContent}
 
-输出：修改后的完整Markdown文章，无额外说明
+输出JSON格式（必须严格遵循）：
+{
+  "articleContent": "修改后的Markdown文章（含占位符）",
+  "imagePrompts": ["提示词1", "提示词2", "提示词3"]
+}
 `;
 
 /**
@@ -339,7 +370,18 @@ ${state.topic}在实际生活中有着广泛的应用场景：
 
 *本文共计约${Math.floor((minWords + maxWords) / 2)}字，涵盖了${state.topic}的各个方面，希望能为读者提供全面而深入的理解。*`;
 
-      return article;
+      // 测试环境也返回 JSON 格式
+      const imagePrompts = [
+        `Professional illustration showing ${state.topic} concept, modern minimalist style`,
+        `Timeline infographic showing development history of ${state.topic}, clean design`,
+      ];
+
+      const testOutput: WriteOutput = {
+        articleContent: article,
+        imagePrompts: imagePrompts,
+      };
+
+      return JSON.stringify(testOutput);
     }
 
     // 🆕 增强日志记录
@@ -370,15 +412,19 @@ ${state.topic}在实际生活中有着广泛的应用场景：
 
     logger.debug('Calling LLM to write article', logContext);
 
-    const systemMessage =
-      '你是一位专业的内容创作者。请根据要求撰写高质量的文章。';
+    // 🆕 系统提示词：要求返回 JSON 格式
+    const WRITE_SYSTEM_MESSAGE =
+      '你是一位专业的内容创作者和配图策划。' +
+      '请严格按照 JSON 格式返回，包含文章内容和配图提示词。' +
+      '文章中插入图片占位符，格式：![描述](image-placeholder-N)。' +
+      '不要包含任何其他文字说明或 markdown 代码块标记。';
 
     // 🆕 使用 LLMServiceFactory 根据配置动态选择服务
     const llmService = LLMServiceFactory.create();
 
     const result = await llmService.chat({
       messages: [
-        { role: 'system', content: systemMessage },
+        { role: 'system', content: WRITE_SYSTEM_MESSAGE },
         { role: 'user', content: prompt },
       ],
       taskId: state.taskId,
@@ -386,15 +432,56 @@ ${state.topic}在实际生活中有着广泛的应用场景：
       stream: true, // 启用流式请求
     });
 
+    // 🆕 解析 JSON 响应
+    let output: WriteOutput;
+    try {
+      const jsonContent = this.extractJSON(result.content);
+      output = JSON.parse(jsonContent);
+    } catch (error) {
+      logger.error('Failed to parse WriteNode output as JSON', {
+        taskId: state.taskId,
+        content: result.content.substring(0, 500),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error('Failed to parse article output. LLM did not return valid JSON.');
+    }
+
+    // 🆕 验证输出
+    this.validateWriteOutput(output);
+
     logger.info('LLM write completed', {
       taskId: state.taskId,
-      contentLength: result.content.length,
+      contentLength: output.articleContent.length,
+      imagePromptsCount: output.imagePrompts.length,
       mode: isRewrite ? 'rewrite' : 'initial',
       stream: true,
       llmServiceType: llmService.constructor.name,
     });
 
-    return result.content;
+    return JSON.stringify(output); // 暂时返回 JSON 字符串
+  }
+
+  /**
+   * 验证 WriteNode 输出
+   */
+  private validateWriteOutput(output: WriteOutput): void {
+    if (!output.articleContent || output.articleContent.trim().length === 0) {
+      throw new Error('Article content is required');
+    }
+
+    if (!Array.isArray(output.imagePrompts)) {
+      logger.warn('imagePrompts is not an array, using empty array');
+      output.imagePrompts = [];
+    }
+
+    // 验证占位符数量匹配
+    const placeholderCount = (output.articleContent.match(/image-placeholder-\d+/g) || []).length;
+    if (placeholderCount !== output.imagePrompts.length) {
+      logger.warn('Placeholder count mismatch', {
+        placeholders: placeholderCount,
+        prompts: output.imagePrompts.length,
+      });
+    }
   }
 
   /**
@@ -470,21 +557,35 @@ ${state.topic}在实际生活中有着广泛的应用场景：
       const params = this.buildPromptParams(state);
       const prompt = this.buildPrompt(state, params);
 
-      // 2. 调用 LLM
-      const content = await this.callLLM(state, prompt);
+      // 2. 调用 LLM（返回 JSON 字符串）
+      const jsonResult = await this.callLLM(state, prompt);
 
-      // 3. 验证内容
-      this.validateContent(state, content);
+      // 3. 解析 JSON 响应
+      let output: WriteOutput;
+      try {
+        output = JSON.parse(jsonResult);
+      } catch (error) {
+        logger.error('Failed to parse write output as JSON', {
+          taskId: state.taskId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw new Error('Invalid write output format');
+      }
 
-      // 4. 返回结果
+      // 4. 验证内容
+      this.validateContent(state, output.articleContent);
+
+      // 5. 返回结果（同时返回 articleContent 和 imagePrompts）
       logger.info('Write completed successfully', {
         taskId: state.taskId,
         mode: isRewrite ? 'rewrite' : 'initial',
-        contentLength: content.length,
+        contentLength: output.articleContent.length,
+        imagePromptsCount: output.imagePrompts.length,
       });
 
       return {
-        articleContent: content,
+        articleContent: output.articleContent,
+        imagePrompts: output.imagePrompts,
       };
     } catch (error) {
       logger.error('Write failed', {
