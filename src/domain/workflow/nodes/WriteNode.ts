@@ -7,7 +7,7 @@
 
 import { BaseNode } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
-import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
+import { LLMServiceFactory } from '../../../services/llm/LLMServiceFactory.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
 const logger = createLogger('WriteNode');
@@ -373,7 +373,10 @@ ${state.topic}在实际生活中有着广泛的应用场景：
     const systemMessage =
       '你是一位专业的内容创作者。请根据要求撰写高质量的文章。';
 
-    const result = await enhancedLLMService.chat({
+    // 🆕 使用 LLMServiceFactory 根据配置动态选择服务
+    const llmService = LLMServiceFactory.create();
+
+    const result = await llmService.chat({
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: prompt },
@@ -388,6 +391,7 @@ ${state.topic}在实际生活中有着广泛的应用场景：
       contentLength: result.content.length,
       mode: isRewrite ? 'rewrite' : 'initial',
       stream: true,
+      llmServiceType: llmService.constructor.name,
     });
 
     return result.content;

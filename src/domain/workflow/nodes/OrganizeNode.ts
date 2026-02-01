@@ -8,7 +8,7 @@ import { BaseNode } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
 import type { OrganizedInfo } from '../State.js';
 import type { ILLMService } from '../../../services/llm/ILLMService.js';
-import { enhancedLLMService } from '../../../services/llm/EnhancedLLMService.js';
+import { LLMServiceFactory } from '../../../services/llm/LLMServiceFactory.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
 const logger = createLogger('OrganizeNode');
@@ -76,12 +76,28 @@ export class OrganizeNode extends BaseNode {
       minKeyPoints: 3,
       maxSummaryLength: 150,
       minSummaryLength: 100,
-      llmService: undefined, // 默认使用 enhancedLLMService
+      llmService: undefined, // 将在使用时动态创建，以支持配置切换
       ...config,
     };
 
-    // 初始化 LLM 服务（注入或使用默认）
-    this.llmService = this.config.llmService || enhancedLLMService;
+    // 🆕 不在构造时初始化 LLM 服务，而是在使用时动态创建
+    // 这样可以根据环境变量（LLM_SERVICE_TYPE）动态选择服务
+    this.llmService = undefined;
+  }
+
+  /**
+   * 获取或创建 LLM 服务
+   * 🆕 使用 LLMServiceFactory 根据配置动态选择服务
+   */
+  private getLLMService(): ILLMService {
+    if (!this.llmService) {
+      // 每次调用时重新创建，确保使用最新配置
+      this.llmService = LLMServiceFactory.create();
+      logger.debug('Created LLM service using factory', {
+        serviceType: this.llmService.constructor.name,
+      });
+    }
+    return this.llmService;
   }
 
   /**
@@ -149,7 +165,10 @@ export class OrganizeNode extends BaseNode {
     const systemMessage =
       '你是一位专业的内容策划。请严格按照要求输出 JSON 格式，不要包含任何其他内容。';
 
-    const result = await this.llmService.chat({
+    // 🆕 使用 LLMServiceFactory 根据配置动态选择服务
+    const llmService = this.getLLMService();
+
+    const result = await llmService.chat({
       messages: [
         { role: 'system', content: systemMessage },
         { role: 'user', content: prompt },
@@ -157,6 +176,11 @@ export class OrganizeNode extends BaseNode {
       taskId: state.taskId,
       stepName: 'organize',
       stream: true, // 启用流式请求
+    });
+
+    logger.info('LLM organize completed', {
+      taskId: state.taskId,
+      llmServiceType: llmService.constructor.name,
     });
 
     // 3. 解析 JSON 响应
