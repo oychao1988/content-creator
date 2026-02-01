@@ -6,39 +6,23 @@
  * - Token 使用记录
  * - 成本估算
  * - 性能监控
+ * - 实现 ILLMService 统一接口
  */
 
 import axios, { AxiosError } from 'axios';
 import { config } from '../../config/index.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
+import type { ILLMService, ChatRequest, ChatResponse, ChatMessage } from './ILLMService.js';
 
 const logger = createLogger('LLM:Enhanced');
 
-/**
- * Chat 消息
- */
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
-}
+// 从 ILLMService 导入的类型
+// ChatMessage, ChatRequest, ChatResponse
 
 /**
- * Chat 请求参数
+ * Chat API 响应（DeepSeek API 格式）
  */
-export interface ChatRequest {
-  messages: ChatMessage[];
-  model?: string;
-  maxTokens?: number;
-  temperature?: number;
-  stream?: boolean;
-  taskId?: string;          // 任务 ID（用于 Token 记录）
-  stepName?: string;         // 步骤名称（用于 Token 记录）
-}
-
-/**
- * Chat 响应
- */
-export interface ChatResponse {
+interface APIChatResponse {
   id: string;
   object: string;
   created: number;
@@ -101,8 +85,9 @@ const COST_CONFIG: Record<string, Record<string, { costPer1kTokensIn: number; co
 
 /**
  * 增强的 LLM 服务类
+ * 实现 ILLMService 统一接口
  */
-export class EnhancedLLMService {
+export class EnhancedLLMService implements ILLMService {
   private baseURL: string;
   private apiKey: string;
   private modelName: string;
@@ -123,12 +108,9 @@ export class EnhancedLLMService {
 
   /**
    * 聊天对话（带重试和 Token 记录）
+   * 实现 ILLMService.chat 接口
    */
-  async chat(request: ChatRequest): Promise<{
-    content: string;
-    usage: TokenUsage;
-    cost: number;
-  }> {
+  async chat(request: ChatRequest): Promise<ChatResponse> {
     const startTime = Date.now();
 
     try {
@@ -182,6 +164,7 @@ export class EnhancedLLMService {
         stream: request.stream || false,
       });
 
+      // 返回统一的 ChatResponse 格式
       return {
         content,
         usage: {
@@ -204,7 +187,7 @@ export class EnhancedLLMService {
   /**
    * 带重试的聊天请求
    */
-  private async chatWithRetry(request: ChatRequest): Promise<ChatResponse> {
+  private async chatWithRetry(request: ChatRequest): Promise<APIChatResponse> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt <= this.retryConfig.maxRetries; attempt++) {
@@ -239,7 +222,7 @@ export class EnhancedLLMService {
   /**
    * 单次聊天请求
    */
-  private async chatRequest(request: ChatRequest): Promise<ChatResponse> {
+  private async chatRequest(request: ChatRequest): Promise<APIChatResponse> {
     const maxTokens = typeof (request.maxTokens || this.maxTokens) === 'number'
       ? request.maxTokens || this.maxTokens
       : parseInt(String(request.maxTokens || this.maxTokens));
@@ -260,8 +243,8 @@ export class EnhancedLLMService {
     }
 
     // 非流式请求
-    const response = await axios.post<ChatResponse>(
-      `${this.baseURL}/v1/chat/completions`,
+    const response = await axios.post<APIChatResponse>(
+      `${this.baseURL}/chat/completions`,
       {
         model: request.model || this.modelName,
         messages: request.messages,
@@ -274,7 +257,7 @@ export class EnhancedLLMService {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
         },
-        timeout: 60000, // 60 秒超时
+        timeout: config.llm.timeout, // 使用配置的超时时间
       }
     );
 
@@ -288,13 +271,13 @@ export class EnhancedLLMService {
     request: ChatRequest,
     maxTokens: number,
     temperature: number
-  ): Promise<ChatResponse> {
+  ): Promise<APIChatResponse> {
     logger.debug('Starting stream request', {
       model: request.model || this.modelName,
     });
 
     const response = await axios.post(
-      `${this.baseURL}/v1/chat/completions`,
+      `${this.baseURL}/chat/completions`,
       {
         model: request.model || this.modelName,
         messages: request.messages,
@@ -308,7 +291,7 @@ export class EnhancedLLMService {
           'Content-Type': 'application/json',
         },
         responseType: 'stream',
-        timeout: 120000, // 流式请求超时时间更长
+        timeout: config.llm.streamTimeout, // 使用配置的流式超时时间
       }
     );
 

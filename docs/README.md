@@ -13,6 +13,9 @@
 ### 架构设计
 - [🏗️ 系统架构设计（完整版）](./architecture-complete.md) - 完整的系统架构设计文档（139K，5500+ 行）
 - [⚙️ 工作流架构](./workflow-architecture.md) - LangGraph 工作流设计详解
+- [🔌 工作流扩展架构设计](./workflow-extension-design.md) - Workflow 可扩展架构设计方案（插件化 + 注册表模式）
+- [📋 工作流扩展开发指南](./workflow-extension-guide.md) - 如何添加和开发新工作流的完整教程
+- [🌐 翻译工作流使用指南](./translation-workflow-guide.md) - 翻译工作流的详细使用说明和示例
 - [✅ 质量检查架构](./quality-check-architecture.md) - 质量检查系统架构
 - [💾 存储机制说明](./storage-guide.md) - PostgreSQL 数据存储设计
 
@@ -89,8 +92,9 @@ archive/phases/
 ### 开发者
 1. 架构设计：[系统架构设计（完整版）](./architecture-complete.md)
 2. 工作流实现：[工作流架构](./workflow-architecture.md)
-3. 质检系统：[质量检查架构](./quality-check-architecture.md)
-4. 技术细节：见 [技术参考文档](#技术参考文档)
+3. 工作流扩展：[工作流扩展架构设计](./workflow-extension-design.md)
+4. 质检系统：[质量检查架构](./quality-check-architecture.md)
+5. 技术细节：见 [技术参考文档](#技术参考文档)
 
 ### 运维人员
 1. [BullMQ 快速参考](./references/bullmq-quick-reference.md) - 任务队列管理
@@ -101,6 +105,7 @@ archive/phases/
 - 项目开发历史：查看 [archive/phases/](./archive/phases/)
 - 特定会话记录：查看 [archive/sessions/](./archive/sessions/)
 - 测试历史：查看 [archive/reports/test-reports/](./archive/reports/test-reports/)
+- 工作流扩展项目：查看项目根目录的 [workflow-extension-SUMMARY.md](../workflow-extension-SUMMARY.md) 等文档
 
 ---
 
@@ -113,6 +118,7 @@ docs/
 ├── user-guide.md                      # 📖 用户手册
 ├── architecture-complete.md           # 🏗️ 架构设计
 ├── workflow-architecture.md           # ⚙️ 工作流架构
+├── workflow-extension-design.md       # 🔌 工作流扩展架构设计
 ├── quality-check-architecture.md      # ✅ 质检架构
 ├── storage-guide.md                   # 💾 存储机制
 ├── DOCUMENTATION-ANALYSIS.md          # 📊 文档分析报告
@@ -138,6 +144,8 @@ docs/
 - 了解架构 → [系统架构设计](./architecture-complete.md)
 - 使用系统 → [用户操作手册](./user-guide.md)
 - 理解工作流 → [工作流架构](./workflow-architecture.md)
+- 扩展工作流 → [工作流扩展架构设计](./workflow-extension-design.md) 或 [工作流扩展开发指南](./workflow-extension-guide.md)
+- 使用翻译工作流 → [翻译工作流使用指南](./translation-workflow-guide.md)
 - 了解质检 → [质量检查架构](./quality-check-architecture.md)
 - 查看历史 → [archive/](./archive/)
 - 队列管理 → [BullMQ 参考](./references/bullmq-quick-reference.md)
@@ -147,7 +155,7 @@ docs/
 
 ## 📝 文档维护
 
-- 文档最后更新：2026-01-22
+- 文档最后更新：2026-01-27
 - 维护者：Content Creator Team
 - 问题反馈：请在项目仓库提交 Issue
 

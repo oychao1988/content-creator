@@ -20,10 +20,9 @@ process.env.POSTGRES_USER = 'test';
 process.env.POSTGRES_PASSWORD = 'test';
 process.env.POSTGRES_DB = 'test_db';
 
-// Redis 配置（优先使用.env中的配置，否则使用本地配置）
-if (!process.env.REDIS_URL) {
-  process.env.REDIS_URL = 'redis://localhost:6379';
-}
+// Redis 配置（测试环境中禁用 Redis）- 确保完全覆盖
+delete process.env.REDIS_URL;
+process.env.REDIS_URL = '';
 
 // LLM 配置（优先使用.env中的真实配置，用于端到端测试）
 if (!process.env.LLM_API_KEY) {

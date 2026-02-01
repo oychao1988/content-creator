@@ -1,7 +1,7 @@
 {
   "name": "llm-content-creator",
-  "version": "0.1.3",
-  "description": "AI 驱动的内容创作工具库",
+  "version": "0.2.0",
+  "description": "AI-powered multi-workflow content creation system with support for content generation, translation, and custom workflows",
   "main": "dist/index.js",
   "bin": {
     "content-creator": "dist/presentation/cli/index.js"
@@ -21,8 +21,8 @@
       "require": "./dist/infrastructure/database/index.cjs"
     },
     "./workflow": {
-      "import": "./dist/domain/workflow/ContentCreatorGraph.js",
-      "require": "./dist/domain/workflow/ContentCreatorGraph.cjs"
+      "import": "./dist/domain/workflow/index.js",
+      "require": "./dist/domain/workflow/index.cjs"
     },
     "./executor": {
       "import": "./dist/application/workflow/SyncExecutor.js",
@@ -64,7 +64,8 @@
     "worker:dev": "tsx watch src/presentation/worker-cli.ts start",
     "monitor": "tsx src/presentation/monitor-cli.ts start",
     "scheduler": "tsx src/presentation/scheduler-cli.ts",
-    "example:ts": "tsx examples/workflow-example.ts",
+    "example:ts": "tsx src/examples/workflow-adapter-demo.ts",
+    "example:translation": "tsx src/examples/translation-workflow-example.ts",
     "example:js": "node examples/workflow-example.js",
     "example:py": "python3 examples/workflow-example.py"
   },
@@ -75,7 +76,12 @@
     "llm",
     "workflow",
     "automation",
-    "writing"
+    "writing",
+    "translation",
+    "multi-workflow",
+    "plugin-architecture",
+    "registry",
+    "extensible"
   ],
   "author": "Oychao",
   "license": "MIT",

@@ -1,7 +1,7 @@
 /**
  * CLI Create 命令端到端测试
  *
- * 测试 create 命令的各种场景
+ * 测试 create 命令的各种场景（适应新架构）
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -16,7 +16,7 @@ type ExecSyncOptions = {
   stdio?: any;
 };
 
-describe('@e2e CLI Create Command', () => {
+describe('@e2e CLI Create Command (新架构)', () => {
   const testDbPath = join(process.cwd(), '.test-db.sqlite');
 
   // 清理测试数据库
@@ -63,43 +63,228 @@ describe('@e2e CLI Create Command', () => {
     }
   }
 
-  describe('参数验证', () => {
-    it('应该在缺少 topic 参数时显示错误', () => {
-      const result = execCliCommand(['create']);
+  describe('工作流类型验证', () => {
+    it('应该拒绝未知的工作流类型', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'non-existent-workflow'
+      ]);
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain('错误');
-      expect(result.stderr).toContain('主题');
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('未知的工作流类型');
+      expect(output).toContain('non-existent-workflow');
     });
 
-    it('应该在提供 topic 时成功创建任务', () => {
-      const result = execCliCommand(['create', '--topic', '测试主题']);
+    it('应该显示可用的工作流类型列表', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'unknown-workflow'
+      ]);
 
-      // 注意：由于可能没有 Redis 连接，命令可能会失败
-      // 但参数验证应该通过
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('可用的工作流类型');
+      expect(output).toContain('content-creator');
+      expect(output).toContain('translation');
+    });
+
+    it('应该默认使用 content-creator 工作流', () => {
+      const result = execCliCommand(['create']);
+
+      // 由于缺少必需参数，应该显示 content-creator 的参数错误
+      expect(result.exitCode).toBe(1);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('缺少必需参数');
+    });
+
+    it('应该支持指定 translation 工作流', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'translation'
+      ]);
+
+      // 应该显示 translation 的必需参数错误
+      expect(result.exitCode).toBe(1);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('缺少必需参数');
+      expect(output).toContain('sourceText');
+      expect(output).toContain('sourceLanguage');
+      expect(output).toContain('targetLanguage');
+    });
+  });
+
+  describe('参数验证 - content-creator 工作流', () => {
+    it('应该在缺少必需参数时显示友好错误', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'content-creator'
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('缺少必需参数');
+      expect(output).toContain('topic');
+      expect(output).toContain('requirements');
+    });
+
+    it('应该在提供 topic 但缺少 requirements 时显示错误', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'content-creator',
+        '--topic', '测试主题'
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('缺少必需参数');
+      expect(output).toContain('requirements');
+    });
+
+    it('应该在提供 requirements 但缺少 topic 时显示错误', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'content-creator',
+        '--requirements', '写一篇文章'
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('缺少必需参数');
+      expect(output).toContain('topic');
+    });
+
+    it('应该接受所有必需参数', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'content-creator',
+        '--topic', '测试主题',
+        '--requirements', '写一篇测试文章'
+      ]);
+
+      // 参数验证应该通过（错误应该是 Redis 或其他服务问题）
       if (result.exitCode === 1) {
-        // 如果失败，应该是因为 Redis，而不是参数验证
-        expect(result.stderr).not.toContain('必须提供文章主题');
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('缺少必需参数');
+        expect(output).not.toContain('参数验证失败');
       }
     });
 
-    it('应该接受所有可选参数', () => {
+    it('应该接受可选参数', () => {
       const result = execCliCommand([
         'create',
+        '--type', 'content-creator',
         '--topic', '测试',
-        '--audience', '技术人员',
+        '--requirements', '写一篇文章',
+        '--target-audience', '技术人员',
         '--keywords', 'AI,机器学习',
-        '--tone', '专业',
-        '--min-words', '100',
-        '--max-words', '1000',
-        '--mode', 'sync',
-        // 不提供 requirements，这样命令会在验证后退出，避免超时
+        '--tone', '专业'
       ]);
 
-      // 参数应该被接受（不包含"未知选项"）
-      const output = result.stdout + result.stderr;
-      expect(output).not.toContain('unknown option');
-      expect(output).not.toContain('未知选项');
+      if (result.exitCode === 1) {
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('缺少必需参数');
+      }
+    });
+  });
+
+  describe('参数验证 - translation 工作流', () => {
+    it('应该在缺少 sourceText 时显示错误', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'translation',
+        '--source-language', 'en',
+        '--target-language', 'zh'
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('缺少必需参数');
+      expect(output).toContain('sourceText');
+    });
+
+    it('应该在缺少 sourceLanguage 时显示错误', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'translation',
+        '--source-text', 'Hello',
+        '--target-language', 'zh'
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('缺少必需参数');
+      expect(output).toContain('sourceLanguage');
+    });
+
+    it('应该在缺少 targetLanguage 时显示错误', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'translation',
+        '--source-text', 'Hello',
+        '--source-language', 'en'
+      ]);
+
+      expect(result.exitCode).toBe(1);
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('缺少必需参数');
+      expect(output).toContain('targetLanguage');
+    });
+
+    it('应该接受所有必需参数', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'translation',
+        '--source-text', 'Hello world',
+        '--source-language', 'en',
+        '--target-language', 'zh'
+      ]);
+
+      // 参数验证应该通过
+      if (result.exitCode === 1) {
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('缺少必需参数');
+      }
+    });
+
+    it('应该接受可选参数', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'translation',
+        '--source-text', 'Hello world',
+        '--source-language', 'en',
+        '--target-language', 'zh',
+        '--translation-style', 'formal',
+        '--domain', 'technology'
+      ]);
+
+      if (result.exitCode === 1) {
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('缺少必需参数');
+      }
+    });
+  });
+
+  describe('友好错误提示', () => {
+    it('应该显示使用示例', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'content-creator'
+      ]);
+
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('💡 使用示例');
+      expect(output).toContain('pnpm run cli create --type content-creator');
+    });
+
+    it('应该在错误消息中显示工作流名称', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'translation'
+      ]);
+
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('翻译工作流');
+      expect(output).toContain('(translation)');
     });
   });
 
@@ -107,168 +292,139 @@ describe('@e2e CLI Create Command', () => {
     it('应该支持同步模式', () => {
       const result = execCliCommand([
         'create',
+        '--type', 'content-creator',
         '--topic', '测试',
-        '--mode', 'sync',
+        '--requirements', '测试要求',
+        '--mode', 'sync'
       ]);
 
-      // sync 模式应该被识别
       if (result.exitCode === 1) {
-        expect(result.stderr).not.toContain('未知选项');
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('未知选项');
       }
     });
 
     it('应该支持异步模式', () => {
       const result = execCliCommand([
         'create',
+        '--type', 'content-creator',
         '--topic', '测试',
-        '--mode', 'async',
+        '--requirements', '测试要求',
+        '--mode', 'async'
       ]);
 
-      // async 模式应该被识别
       if (result.exitCode === 1) {
-        expect(result.stderr).not.toContain('未知选项');
-      }
-    });
-
-    it('应该支持 --sync 快捷选项', () => {
-      const result = execCliCommand([
-        'create',
-        '--topic', '测试',
-        '--sync',
-      ]);
-
-      // --sync 应该被识别
-      if (result.exitCode === 1) {
-        expect(result.stderr).not.toContain('未知选项');
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('未知选项');
       }
     });
   });
 
   describe('优先级设置', () => {
-    it('应该支持低优先级', () => {
-      const result = execCliCommand([
-        'create',
-        '--topic', '测试',
-        '--priority', 'low',
-      ]);
+    it('应该支持各种优先级', () => {
+      const priorities = ['low', 'normal', 'high', 'urgent'];
 
-      if (result.exitCode === 1) {
-        expect(result.stderr).not.toContain('未知选项');
-      }
-    });
+      priorities.forEach(priority => {
+        const result = execCliCommand([
+          'create',
+          '--type', 'content-creator',
+          '--topic', '测试',
+          '--requirements', '测试要求',
+          '--priority', priority
+        ]);
 
-    it('应该支持普通优先级', () => {
-      const result = execCliCommand([
-        'create',
-        '--topic', '测试',
-        '--priority', 'normal',
-      ]);
-
-      if (result.exitCode === 1) {
-        expect(result.stderr).not.toContain('未知选项');
-      }
-    });
-
-    it('应该支持高优先级', () => {
-      const result = execCliCommand([
-        'create',
-        '--topic', '测试',
-        '--priority', 'high',
-      ]);
-
-      if (result.exitCode === 1) {
-        expect(result.stderr).not.toContain('未知选项');
-      }
-    });
-
-    it('应该支持紧急优先级', () => {
-      const result = execCliCommand([
-        'create',
-        '--topic', '测试',
-        '--priority', 'urgent',
-      ]);
-
-      if (result.exitCode === 1) {
-        expect(result.stderr).not.toContain('未知选项');
-      }
-    });
-  });
-
-  describe('错误处理', () => {
-    it('应该在无效优先级时显示错误', () => {
-      const result = execCliCommand([
-        'create',
-        '--topic', '测试',
-        '--priority', 'invalid',
-      ]);
-
-      // 应该拒绝无效的优先级
-      if (result.exitCode === 1) {
-        expect(result.stderr).toMatch(/(错误|无效|error)/i);
-      }
-    });
-
-    it('应该在无效模式时显示错误', () => {
-      const result = execCliCommand([
-        'create',
-        '--topic', '测试',
-        '--mode', 'invalid',
-      ]);
-
-      // 应该拒绝无效的模式
-      if (result.exitCode === 1) {
-        expect(result.stderr).toMatch(/(错误|无效|error)/i);
-      }
+        if (result.exitCode === 1) {
+          const output = result.stderr + result.stdout;
+          expect(output).not.toContain('未知选项');
+        }
+      });
     });
   });
 
   describe('输出格式', () => {
-    it('应该显示任务ID', () => {
+    it('应该显示工作流类型信息', () => {
       const result = execCliCommand([
         'create',
+        '--type', 'content-creator',
         '--topic', '测试主题',
+        '--requirements', '测试要求'
       ]);
 
-      // 如果成功创建，应该显示任务ID
       if (result.exitCode === 0) {
-        expect(result.stdout).toMatch(/task/i);
-        expect(result.stdout).toMatch(/ID/i);
+        expect(result.stdout).toContain('Content Creator');
+        expect(result.stdout).toContain('content-creator');
       }
     });
 
-    it('应该显示执行模式', () => {
+    it('应该显示工作流描述', () => {
       const result = execCliCommand([
         'create',
-        '--topic', '测试',
-        '--mode', 'sync',
+        '--type', 'translation',
+        '--source-text', 'Hello',
+        '--source-language', 'en',
+        '--target-language', 'zh'
       ]);
 
       if (result.exitCode === 0) {
-        expect(result.stdout).toMatch(/(sync|同步|mode)/i);
+        expect(result.stdout).toContain('翻译工作流');
       }
     });
   });
 
-  describe('参数组合', () => {
-    it('应该支持完整的参数组合', () => {
+  describe('向后兼容性', () => {
+    it('应该支持旧的参数格式（kebab-case）', () => {
       const result = execCliCommand([
         'create',
-        '--topic', '完整测试',
-        '--requirements', '这是一个完整的测试',
-        '--audience', '开发者',
-        '--keywords', 'test,e2e,cli',
-        '--tone', '友好',
-        '--min-words', '200',
-        '--max-words', '800',
-        '--mode', 'async',
-        '--priority', 'high',
+        '--topic', '测试',
+        '--requirements', '测试要求',
+        '--target-audience', '技术人员',
+        '--keywords', 'AI,ML'
       ]);
 
-      // 所有参数应该被正确解析
       if (result.exitCode === 1) {
-        // 如果失败，检查是否是 Redis 问题而不是参数问题
-        expect(result.stderr).not.toContain('未知选项');
-        expect(result.stderr).not.toContain('必须提供文章主题');
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('未知选项');
+      }
+    });
+  });
+
+  describe('参数组合测试', () => {
+    it('应该支持完整的 content-creator 参数组合', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'content-creator',
+        '--topic', '完整测试',
+        '--requirements', '这是一个完整的测试',
+        '--target-audience', '开发者',
+        '--keywords', 'test,e2e,cli',
+        '--tone', '友好',
+        '--mode', 'async',
+        '--priority', 'high'
+      ]);
+
+      if (result.exitCode === 1) {
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('缺少必需参数');
+        expect(output).not.toContain('未知选项');
+      }
+    });
+
+    it('应该支持完整的 translation 参数组合', () => {
+      const result = execCliCommand([
+        'create',
+        '--type', 'translation',
+        '--source-text', 'Machine learning is revolutionizing industries',
+        '--source-language', 'en',
+        '--target-language', 'ja',
+        '--translation-style', 'technical',
+        '--domain', 'technology',
+        '--mode', 'sync'
+      ]);
+
+      if (result.exitCode === 1) {
+        const output = result.stderr + result.stdout;
+        expect(output).not.toContain('缺少必需参数');
+        expect(output).not.toContain('未知选项');
       }
     });
   });

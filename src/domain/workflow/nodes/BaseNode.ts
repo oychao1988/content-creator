@@ -9,7 +9,7 @@
  * - 重试支持
  */
 
-import type { WorkflowState } from '../State.js';
+import type { BaseWorkflowState } from '../BaseWorkflowState.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 
 const logger = createLogger('BaseNode');
@@ -17,9 +17,9 @@ const logger = createLogger('BaseNode');
 /**
  * 节点执行结果
  */
-export interface NodeResult {
+export interface NodeResult<TState extends BaseWorkflowState = BaseWorkflowState> {
   success: boolean;
-  stateUpdate: Partial<WorkflowState>;
+  stateUpdate: Partial<TState>;
   error?: string;
   tokenUsage?: {
     tokensIn: number;
@@ -41,7 +41,7 @@ export interface NodeConfig {
 /**
  * 节点基类
  */
-export abstract class BaseNode {
+export abstract class BaseNode<TState extends BaseWorkflowState = BaseWorkflowState> {
   protected readonly name: string;
   protected readonly retryCount: number;
   protected readonly timeout: number;
@@ -50,7 +50,7 @@ export abstract class BaseNode {
   constructor(config: NodeConfig) {
     this.name = config.name;
     this.retryCount = config.retryCount ?? 0;
-    this.timeout = config.timeout ?? 60000; // 60 秒默认超时
+    this.timeout = config.timeout ?? 300000; // 300 秒默认超时
     this.logger = createLogger(`Node:${this.name}`);
   }
 
@@ -60,7 +60,7 @@ export abstract class BaseNode {
    * @param state - 当前工作流状态
    * @returns 节点执行结果
    */
-  async execute(state: WorkflowState): Promise<NodeResult> {
+  async execute(state: TState): Promise<NodeResult<TState>> {
     const startTime = Date.now();
     const attempt = this.getAttemptCount(state);
 
@@ -113,7 +113,7 @@ export abstract class BaseNode {
         success: false,
         stateUpdate: {
           error: errorMessage,
-        },
+        } as unknown as Partial<TState>,
         error: errorMessage,
         duration,
       };
@@ -126,7 +126,7 @@ export abstract class BaseNode {
    * @param state - 当前工作流状态
    * @returns 状态更新（Partial<WorkflowState>）
    */
-  protected abstract executeLogic(state: WorkflowState): Promise<Partial<WorkflowState>>;
+  protected abstract executeLogic(state: TState): Promise<Partial<TState>>;
 
   /**
    * 验证状态（可选，由子类重写）
@@ -134,7 +134,7 @@ export abstract class BaseNode {
    * @param state - 当前工作流状态
    * @throws Error 如果状态无效
    */
-  protected validateState(state: WorkflowState): void {
+  protected validateState(state: TState): void {
     // 默认验证：检查是否有错误
     if (state.error) {
       throw new Error(`Previous error: ${state.error}`);
@@ -147,7 +147,7 @@ export abstract class BaseNode {
    * @param state - 当前工作流状态
    * @returns 尝试次数
    */
-  protected getAttemptCount(_state: WorkflowState): number {
+  protected getAttemptCount(_state: TState): number {
     // 默认：返回 0
     // 子类可以根据 state 中的重试计数器返回实际值
     return 0;
@@ -159,7 +159,7 @@ export abstract class BaseNode {
    * @param state - 当前工作流状态
    * @returns 状态更新
    */
-  private async executeWithTimeout(state: WorkflowState): Promise<Partial<WorkflowState>> {
+  private async executeWithTimeout(state: TState): Promise<Partial<TState>> {
     return Promise.race([
       this.executeLogic(state),
       this.createTimeoutPromise(),
@@ -185,7 +185,7 @@ export abstract class BaseNode {
    * @param tokensOut - 输出 Token 数量
    */
   protected recordTokenUsage(
-    state: WorkflowState,
+    state: TState,
     tokensIn: number,
     tokensOut: number
   ): void {
@@ -214,11 +214,11 @@ export abstract class BaseNode {
   /**
    * 创建状态更新辅助函数
    */
-  protected updateState<T extends keyof WorkflowState>(
+  protected updateState<T extends keyof TState>(
     field: T,
-    value: WorkflowState[T]
-  ): Partial<WorkflowState> {
-    return { [field]: value } as Partial<WorkflowState>;
+    value: TState[T]
+  ): Partial<TState> {
+    return { [field]: value } as unknown as Partial<TState>;
   }
 
   /**
@@ -226,12 +226,10 @@ export abstract class BaseNode {
    *
    * @returns LangGraph 节点函数
    */
-  toLangGraphNode(): (state: WorkflowState) => Promise<Partial<WorkflowState>> {
-    return async (state: WorkflowState) => {
+  toLangGraphNode(): (state: TState) => Promise<Partial<TState>> {
+    return async (state: TState) => {
       logger.debug(`Node ${this.name} received state`, {
         taskId: state.taskId,
-        topic: state.topic,
-        hasTopic: !!state.topic,
         stateKeys: Object.keys(state),
       });
 

@@ -20,12 +20,14 @@ describe('Queue System Integration Tests', () => {
   let queue: Awaited<ReturnType<typeof createTaskQueue>>;
   let worker: ReturnType<typeof createTaskWorker>;
   let scheduler: Awaited<ReturnType<typeof createTaskScheduler>>;
-  const repository = createTaskRepository();
+  let repository: ReturnType<typeof createTaskRepository>;
   let redisAvailable = false;
   let redisConnectionType = '';
 
   beforeAll(async () => {
-    console.error('\n=== QUEUE TEST beforeAll HOOK STARTED ===');
+    // 在需要时才创建 repository，避免模块加载时的初始化问题
+    repository = createTaskRepository();
+
     console.error('REDIS_URL from env:', process.env.REDIS_URL);
 
     // Redis连接测试 - 支持两种方式
@@ -100,7 +102,7 @@ describe('Queue System Integration Tests', () => {
       return;
     }
 
-    console.error('Initializing queue system...');
+    console.log('Initializing queue system...');
     // 初始化队列、Worker 和调度器
     try {
       queue = await createTaskQueue();

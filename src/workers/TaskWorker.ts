@@ -8,10 +8,13 @@ import { Worker, Job } from 'bullmq';
 import { v4 as uuidv4 } from 'uuid';
 import { getRedisClient } from '../infrastructure/redis/connection.js';
 import { createTaskRepository, createResultRepository } from '../infrastructure/database/index.js';
-import { createContentCreatorGraph, createInitialState } from '../domain/workflow/index.js';
+import { WorkflowRegistry } from '../domain/workflow/index.js';
+import { contentCreatorWorkflowAdapter } from '../domain/workflow/adapters/ContentCreatorWorkflowAdapter.js';
+import { translationWorkflowFactory } from '../domain/workflow/examples/TranslationWorkflow.js';
 import { createLogger } from '../infrastructure/logging/logger.js';
-import type { TaskJobData } from '../infrastructure/queue/TaskQueue.js';
 import { ExecutionMode } from '../domain/entities/Task.js';
+import type { TaskJobData } from '../infrastructure/queue/TaskQueue.js';
+import type { WorkflowState } from '../domain/workflow/State.js';
 
 const logger = createLogger('TaskWorker');
 
@@ -36,6 +39,10 @@ export class TaskWorker {
    */
   async start(): Promise<void> {
     try {
+      // 注册工作流
+      WorkflowRegistry.register(contentCreatorWorkflowAdapter);
+      WorkflowRegistry.register(translationWorkflowFactory);
+
       const connection = await getRedisClient();
 
       this.worker = new Worker<TaskJobData>(
@@ -80,9 +87,13 @@ export class TaskWorker {
     const { data } = job;
     const startTime = Date.now();
 
+    // 从任务数据中获取工作流类型（默认为 content-creator）
+    const workflowType = data.type || 'content-creator';
+
     logger.info('Processing job', {
       jobId: job.id,
       taskId: data.taskId,
+      workflowType,
       topic: data.topic,
     });
 
@@ -111,16 +122,16 @@ export class TaskWorker {
       // 更新任务版本号（claimTask 会将版本号 +1）
       task.version = task.version + 1;
 
-      logger.info('Task claimed', { taskId: data.taskId });
+      logger.info('Task claimed', { taskId: data.taskId, workflowType });
 
       // 更新进度 10%
       await job.updateProgress(10);
 
-      // 2. 创建工作流图
-      const graph = createContentCreatorGraph();
+      // 2. 从注册表获取工作流
+      const graph = WorkflowRegistry.createGraph(workflowType);
 
       // 3. 创建初始状态
-      const initialState = createInitialState({
+      const initialState = WorkflowRegistry.createState<WorkflowState>(workflowType, {
         taskId: data.taskId,
         mode: data.mode === 'sync' ? ExecutionMode.SYNC : ExecutionMode.ASYNC,
         topic: data.topic,
@@ -128,7 +139,10 @@ export class TaskWorker {
         hardConstraints: data.hardConstraints,
       });
 
-      logger.info('Starting workflow execution', { taskId: data.taskId });
+      logger.info('Starting workflow execution', {
+        taskId: data.taskId,
+        workflowType,
+      });
 
       // 更新进度 20%
       await job.updateProgress(20);
@@ -173,6 +187,7 @@ export class TaskWorker {
       logger.info('Job completed successfully', {
         jobId: job.id,
         taskId: data.taskId,
+        workflowType,
         duration,
       });
 
@@ -190,6 +205,7 @@ export class TaskWorker {
       logger.error('Job failed', {
         jobId: job.id,
         taskId: data.taskId,
+        workflowType,
         error: errorMessage,
         duration,
       });

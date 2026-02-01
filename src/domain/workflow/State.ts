@@ -6,6 +6,7 @@
  */
 
 import { ExecutionMode } from '../entities/Task.js';
+import type { BaseWorkflowState } from './BaseWorkflowState.js';
 
 // 重新导出 ExecutionMode 以便外部使用
 export { ExecutionMode };
@@ -64,11 +65,13 @@ export interface GeneratedImage {
  * - State 必须可序列化（JSON.stringify）
  * - 不能包含函数、循环引用
  * - 大对象使用引用（避免重复）
+ * - WorkflowState 继承自 BaseWorkflowState，包含所有工作流通用字段
  */
-export interface WorkflowState {
-  // ========== 输入参数 ==========
-  taskId: string;                        // 任务 ID
-  mode: ExecutionMode;                   // 执行模式（sync/async）
+export interface WorkflowState extends BaseWorkflowState {
+  // ========== 工作流类型标识 ==========
+  workflowType: 'content-creator';       // 工作流类型（固定值）
+
+  // ========== ContentCreator 特定输入参数 ==========
   topic: string;                         // 选题
   requirements: string;                  // 写作要求
   hardConstraints: {                     // 硬性约束
@@ -99,18 +102,9 @@ export interface WorkflowState {
   textQualityReport?: QualityReport;     // 文本质检报告
   imageQualityReport?: QualityReport;    // 配图质检报告
 
-  // ========== 控制数据（持久化到 DB） ==========
-  currentStep: string;                   // 当前步骤名称
+  // ========== ContentCreator 特定控制数据 ==========
   textRetryCount: number;                // 文本质检重试次数
   imageRetryCount: number;               // 配图质检重试次数
-
-  // ========== 元数据 ==========
-  startTime?: number;                    // 开始时间（时间戳）
-  endTime?: number;                      // 结束时间（时间戳）
-  error?: string;                        // 错误信息
-
-  // ========== 版本控制（乐观锁） ==========
-  version: number;                       // 版本号（用于数据库更新）
 }
 
 /**
@@ -131,18 +125,26 @@ export function createInitialState(params: {
   };
 }): WorkflowState {
   return {
+    // BaseWorkflowState 字段
     taskId: params.taskId,
+    workflowType: 'content-creator',
     mode: params.mode,
+    currentStep: 'start',
+    retryCount: 0,
+    version: 1,
+    startTime: Date.now(),
+    metadata: {
+      targetAudience: params.targetAudience,
+      keywords: params.keywords,
+      tone: params.tone,
+    },
+
+    // ContentCreator 特定字段
     topic: params.topic,
     requirements: params.requirements,
     hardConstraints: params.hardConstraints || {},
-
-    currentStep: 'start',
     textRetryCount: 0,
     imageRetryCount: 0,
-    version: 1, // 初始版本号
-
-    startTime: Date.now(),
   };
 }
 

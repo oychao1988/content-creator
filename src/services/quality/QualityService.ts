@@ -4,7 +4,7 @@
  * 质量检查服务，包含硬规则检查和 LLM 评审
  */
 
-import { llmService } from '../llm/LLMService.js';
+import { enhancedLLMService } from '../llm/EnhancedLLMService.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 
 const logger = createLogger('Quality');
@@ -187,42 +187,50 @@ ${text}
 
 返回 JSON 格式的评估结果。`;
 
-      const response = await llmService.generateText(userPrompt, systemPrompt);
+      const llmResponse = await enhancedLLMService.chat({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        stream: true, // 启用流式请求
+      });
+
+      const response = llmResponse.content;
 
       // 尝试解析 JSON 响应
-      let result: any;
+      let parsedResult: any;
       try {
         // 提取 JSON（可能包含在代码块中）
         const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) ||
                          response.match(/\{[\s\S]*\}/);
         const jsonStr = jsonMatch ? jsonMatch[1] || jsonMatch[0] : response;
-        result = JSON.parse(jsonStr);
+        parsedResult = JSON.parse(jsonStr);
       } catch (error) {
         logger.warn('Failed to parse LLM response as JSON', { response });
         // 如果解析失败，使用默认值
-        result = {
+        parsedResult = {
           score: 70,
           passed: true,
           reason: 'LLM 评审完成（响应格式无法解析，使用默认评分）',
         };
       }
 
-      const score = result.score || 70;
-      const passed = result.passed ?? (score >= (this.thresholds.passScore || 60));
+      const score = parsedResult.score || 70;
+      const passed = parsedResult.passed ?? (score >= (this.thresholds.passScore || 60));
 
       logger.info('Text LLM check completed', { score, passed });
 
       return {
         passed,
         score,
-        reason: result.reason || `LLM 评审得分：${score}`,
+        reason: parsedResult.reason || `LLM 评审得分：${score}`,
         details: {
           llm: {
             prompt: userPrompt,
             response,
             criteria: ['相关性', '完整性', '准确性', '可读性', '吸引力'],
           },
-          issues: result.issues,
+          issues: parsedResult.issues,
         },
       };
     } catch (error) {
@@ -368,40 +376,48 @@ ${text}
 
 返回 JSON 格式的评估结果。`;
 
-      const response = await llmService.generateText(userPrompt, systemPrompt);
+      const llmResponse = await enhancedLLMService.chat({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        stream: true, // 启用流式请求
+      });
+
+      const response = llmResponse.content;
 
       // 尝试解析 JSON 响应
-      let result: any;
+      let parsedResult: any;
       try {
         const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) ||
                          response.match(/\{[\s\S]*\}/);
         const jsonStr = jsonMatch ? jsonMatch[1] || jsonMatch[0] : response;
-        result = JSON.parse(jsonStr);
+        parsedResult = JSON.parse(jsonStr);
       } catch (error) {
         logger.warn('Failed to parse LLM response as JSON', { response });
-        result = {
+        parsedResult = {
           score: 70,
           passed: true,
           reason: '图片 LLM 评审完成（响应格式无法解析，使用默认评分）',
         };
       }
 
-      const score = result.score || 70;
-      const passed = result.passed ?? (score >= (this.thresholds.passScore || 60));
+      const score = parsedResult.score || 70;
+      const passed = parsedResult.passed ?? (score >= (this.thresholds.passScore || 60));
 
       logger.info('Image LLM check completed', { score, passed });
 
       return {
         passed,
         score,
-        reason: result.reason || `LLM 评审得分：${score}`,
+        reason: parsedResult.reason || `LLM 评审得分：${score}`,
         details: {
           llm: {
             prompt: userPrompt,
             response,
             criteria: ['相关性', '完整性', '美观度', '创意性', '安全性'],
           },
-          issues: result.issues,
+          issues: parsedResult.issues,
         },
       };
     } catch (error) {

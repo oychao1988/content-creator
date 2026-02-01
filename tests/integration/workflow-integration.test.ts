@@ -26,26 +26,31 @@ import {
   MockImageService,
 } from '../utils/test-helpers.js';
 
+// 延迟函数，用于避免 API 频率限制
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+let lastTestTime = Date.now();
+
 describe('ContentCreator Workflow Integration Tests', () => {
-  let mockSearchService: MockSearchService;
-  let mockLLMService: MockLLMService;
-  let mockImageService: MockImageService;
+  beforeEach(async () => {
+    // 清除所有 mocks
+    vi.clearAllMocks();
 
-  beforeEach(() => {
-    // Setup all mocks
-    mockSearchService = new MockSearchService();
-    mockLLMService = new MockLLMService();
-    mockImageService = new MockImageService();
-
-    // Mock services here if needed
-    // vi.doMock('../../src/services/search/SearchService.js', () => ({
-    //   searchService: mockSearchService,
-    // }));
+    // 确保每个测试之间至少有 3 秒的间隔
+    const timeSinceLastTest = Date.now() - lastTestTime;
+    if (timeSinceLastTest < 3000) {
+      await delay(3000 - timeSinceLastTest);
+    }
   });
 
-  afterEach(() => {
-    // Clear all mocks
-    vi.clearAllMocks();
+  afterEach(async () => {
+    // 记录测试完成时间
+    lastTestTime = Date.now();
+
+    // 每个测试后添加延迟，避免 API 频率限制
+    await delay(5000);
   });
 
   describe('Full Workflow Execution', () => {
@@ -84,7 +89,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // 验证图片已生成（测试环境下为 mock 图片）
       expect(result.images).toBeDefined();
       expect(result.images?.length).toBeGreaterThan(0);
-    }, 300000); // 5分钟超时，覆盖 vitest 全局配置
+    }, 600000); // 5分钟超时，覆盖 vitest 全局配置
 
     it('should have search results after search node', async () => {
       const graph = createSimpleContentCreatorGraph();
@@ -95,7 +100,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // Search results should be populated
       expect(result.searchResults).toBeDefined();
       // Note: Actual values depend on mock implementation
-    }, 300000);
+    }, 600000);
   });
 
   describe('Quality Check Retry', () => {
@@ -117,7 +122,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
 
       // Verify retry happened
       expect(result).toBeDefined();
-    }, 300000);
+    }, 600000);
 
     it('should fail after max retries', async () => {
       const graph = createSimpleContentCreatorGraph();
@@ -139,7 +144,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       expect(result.textQualityReport).toHaveProperty('passed', false);
       expect(result.textQualityReport).toHaveProperty('hardConstraintsPassed', false);
       expect(result.textQualityReport.score).toBeLessThan(5); // 低于测试环境的及格分数（5分）
-    }, 300000);
+    }, 600000);
   });
 
   describe('Streaming Execution', () => {
@@ -180,7 +185,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
 
       const result = await graph.invoke(initialState);
       expect(result).toBeDefined();
-    }, 300000);
+    }, 600000);
 
     it('should handle LLM failure', async () => {
       const graph = createSimpleContentCreatorGraph();
@@ -190,7 +195,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // The workflow should retry or fail gracefully
 
       // This test would require mocking the LLM to fail
-    }, 300000);
+    }, 600000);
   });
 
   describe('State Updates', () => {
@@ -205,7 +210,7 @@ describe('ContentCreator Workflow Integration Tests', () => {
       expect(finalState.searchResults).toBeDefined();
       expect(finalState.organizedInfo).toBeDefined();
       expect(finalState.articleContent).toBeDefined();
-    }, 300000);
+    }, 600000);
 
     it('should increment retry count on failure', async () => {
       const graph = createSimpleContentCreatorGraph();
@@ -219,33 +224,37 @@ describe('ContentCreator Workflow Integration Tests', () => {
 
       // Verify retry count incremented
       expect(finalState.textRetryCount).toBeGreaterThanOrEqual(0);
-    }, 300000);
+    }, 600000);
   });
 
   describe('Concurrent Execution', () => {
-    it('should handle multiple concurrent workflows', async () => {
+    it('should handle multiple workflows (executed serially to avoid rate limiting)', async () => {
       const graph = createSimpleContentCreatorGraph();
 
       const initialState1 = createTestInitialState({
-        taskId: 'test-concurrent-1',
+        taskId: `test-serial-1-${Date.now()}`,
       });
       const initialState2 = createTestInitialState({
-        taskId: 'test-concurrent-2',
+        taskId: `test-serial-2-${Date.now()}`,
       });
       const initialState3 = createTestInitialState({
-        taskId: 'test-concurrent-3',
+        taskId: `test-serial-3-${Date.now()}`,
       });
 
-      // Execute multiple workflows concurrently
-      const results = await Promise.all([
-        graph.invoke(initialState1),
-        graph.invoke(initialState2),
-        graph.invoke(initialState3),
-      ]);
+      // Execute multiple workflows serially to avoid API rate limiting
+      const result1 = await graph.invoke(initialState1);
+      await delay(3000); // Wait between requests
+
+      const result2 = await graph.invoke(initialState2);
+      await delay(3000);
+
+      const result3 = await graph.invoke(initialState3);
+
+      const results = [result1, result2, result3];
 
       // Verify all completed
       expect(results).toHaveLength(3);
       expect(results.every((r) => r !== undefined)).toBe(true);
-    }, 300000);
+    }, 600000);
   });
 });

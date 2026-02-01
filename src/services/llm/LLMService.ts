@@ -149,7 +149,7 @@ export class LLMService {
         : parseFloat(String(request.temperature ?? this.temperature));
 
       const response = await axios.post<ChatResponse>(
-        `${this.baseURL}/v1/chat/completions`,
+        `${this.baseURL}/chat/completions`,
         {
           model: request.model || this.modelName,
           messages: request.messages,
@@ -162,7 +162,7 @@ export class LLMService {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
-          timeout: 60000, // 60 秒超时
+          timeout: config.llm.timeout, // 使用配置的超时时间
         }
       );
 

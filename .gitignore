@@ -1,21 +1,45 @@
+# 环境变量备份文件
+.env.bak
+.env.bak2
+
+# 开发进度文档（临时）
+dev/active/
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 测试覆盖率
+coverage/
+.nyc_output/
+
+# 临时文件
+*.tmp
+*.temp
 node_modules/
 .DS_Store
 *.log
 dist/
 .env
 .env.local
-
-# 临时分析文档
 docs/DOCUMENTATION-ANALYSIS.md
 docs/SOURCE-CODE-ANALYSIS.md
 docs/archive/
-
-# 编译缓存
 .claude/tsc-cache/
-
-# SQLite 数据库文件
 data/content-creator.db*
-
-# 测试结果文件
 test-results/
 test-full-output.log
+
+# 进度文档和报告（不纳入版本控制）
+docs/reports/
+docs/development/
+docs/workflow/WORKFLOW-EXTENSION-PROGRESS.md
+>> .gitignore
+NPM-PUBLISH-CHECKLIST.md

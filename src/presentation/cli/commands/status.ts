@@ -9,6 +9,8 @@ import chalk from 'chalk';
 import { createTaskRepository } from '../../../infrastructure/database/index.js';
 import { getStatusText, formatDate, formatDuration, printSeparator } from '../utils/formatter.js';
 import { cleanupResources } from '../utils/cleanup.js';
+import { WorkflowRegistry } from '../../../domain/workflow/WorkflowRegistry.js';
+import { ensureWorkflowsInitialized } from '../../../domain/workflow/initialize.js';
 
 export const statusCommand = new Command('status')
   .description('查询任务状态')
@@ -17,6 +19,9 @@ export const statusCommand = new Command('status')
     const taskRepo = createTaskRepository();
 
     try {
+      // 确保工作流已初始化
+      ensureWorkflowsInitialized();
+
       const task = await taskRepo.findById(options.taskId);
 
       if (!task) {
@@ -25,11 +30,20 @@ export const statusCommand = new Command('status')
         process.exit(1);
       }
 
+      // 获取工作流元数据（如果可用）
+      const workflowType = task.workflowType || 'content-creator';
+      let metadata = null;
+      try {
+        metadata = WorkflowRegistry.getMetadata(workflowType);
+      } catch (error) {
+        // 工作流类型不存在，忽略
+      }
+
       console.log(chalk.blue.bold('\n📊 任务状态'));
       printSeparator();
       console.log(chalk.white(`任务ID: ${task.taskId}`));
       console.log(chalk.white(`状态: ${getStatusText(task.status)}`));
-      console.log(chalk.white(`当前步骤: ${task.currentStep ? getStepDisplayName(task.currentStep) : '无'}`));
+      console.log(chalk.white(`当前步骤: ${task.currentStep ? getStepDisplayName(task.currentStep, metadata) : '无'}`));
       console.log(chalk.white(`执行模式: ${task.mode === 'sync' ? '同步' : '异步'}`));
       console.log(chalk.white(`优先级: ${getPriorityText(task.priority)}`));
       printSeparator();
@@ -44,16 +58,35 @@ export const statusCommand = new Command('status')
       }
       printSeparator();
 
-      // 显示重试信息
-      if (task.textRetryCount > 0 || task.imageRetryCount > 0) {
-        console.log(chalk.white.bold('重试统计:'));
-        if (task.textRetryCount > 0) {
-          console.log(chalk.white(`  文本质检: ${task.textRetryCount} 次`));
+      // 显示重试信息（从工作流元数据动态获取）
+      if (metadata && metadata.retryFields && metadata.retryFields.length > 0) {
+        const hasRetryStats = metadata.retryFields.some(field => {
+          const retryCount = (task as any)[field.name];
+          return retryCount && retryCount > 0;
+        });
+
+        if (hasRetryStats) {
+          console.log(chalk.white.bold('重试统计:'));
+          metadata.retryFields.forEach(field => {
+            const retryCount = (task as any)[field.name];
+            if (retryCount && retryCount > 0) {
+              console.log(chalk.white(`  ${field.displayName}: ${retryCount} 次`));
+            }
+          });
+          printSeparator();
         }
-        if (task.imageRetryCount > 0) {
-          console.log(chalk.white(`  配图质检: ${task.imageRetryCount} 次`));
+      } else {
+        // 兼容旧格式（硬编码的 content-creator 重试字段）
+        if (task.textRetryCount > 0 || task.imageRetryCount > 0) {
+          console.log(chalk.white.bold('重试统计:'));
+          if (task.textRetryCount > 0) {
+            console.log(chalk.white(`  文本质检: ${task.textRetryCount} 次`));
+          }
+          if (task.imageRetryCount > 0) {
+            console.log(chalk.white(`  配图质检: ${task.imageRetryCount} 次`));
+          }
+          printSeparator();
         }
-        printSeparator();
       }
 
       // 显示错误信息
@@ -80,16 +113,24 @@ export const statusCommand = new Command('status')
     }
   });
 
-function getStepDisplayName(step: string): string {
-  const displayNames: Record<string, string> = {
+function getStepDisplayName(step: string, metadata: any): string {
+  // 如果工作流元数据中有步骤名称映射，使用它
+  if (metadata && metadata.stepNames && metadata.stepNames[step]) {
+    return metadata.stepNames[step];
+  }
+
+  // 默认步骤名称映射（向后兼容 content-creator）
+  const defaultDisplayNames: Record<string, string> = {
     'search': '🔍 搜索资料',
     'organize': '📋 整理大纲',
     'write': '✍️ 撰写内容',
     'check_text': '🔍 文本质检',
     'generate_image': '🎨 生成配图',
     'check_image': '🔍 配图质检',
+    'translate': '🌐 翻译',
+    'checkQuality': '🔍 质检',
   };
-  return displayNames[step] || step;
+  return defaultDisplayNames[step] || step;
 }
 
 function getPriorityText(priority: number): string {

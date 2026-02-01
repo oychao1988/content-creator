@@ -7,10 +7,37 @@ import { TaskWorker, createTaskWorker } from '../../src/workers/TaskWorker.js';
 import { createTaskRepository } from '../../src/infrastructure/database/index.js';
 import Redis from 'ioredis';
 
-// Mock Redis 连接
-const mockRedis = {
-  duplicate: () => mockRedis,
-} as unknown as Redis;
+// 使用 vi.hoisted() 确保 mockRedis 在 mock 之前定义
+const { mockRedis } = vi.hoisted(() => ({
+  mockRedis: {
+    duplicate: vi.fn(function() {
+      return mockRedis;
+    }),
+  } as unknown as Redis,
+}));
+
+// Mock Redis client
+vi.mock('../../src/infrastructure/redis/connection.js', () => ({
+  getRedisClient: vi.fn().mockResolvedValue(mockRedis),
+}));
+
+// Mock BullMQ Worker
+vi.mock('bullmq', () => {
+  const mockWorker = {
+    waitUntilReady: vi.fn().mockResolvedValue(),
+    isRunning: vi.fn().mockReturnValue(false),
+    pause: vi.fn().mockResolvedValue(),
+    resume: vi.fn().mockResolvedValue(),
+    close: vi.fn().mockResolvedValue(),
+    on: vi.fn().mockReturnThis(),
+  };
+
+  return {
+    Worker: vi.fn(function() {
+      return mockWorker;
+    }),
+  };
+});
 
 // Mock Repository
 vi.mock('../../src/infrastructure/database/index.js', () => ({
@@ -22,10 +49,48 @@ vi.mock('../../src/infrastructure/database/index.js', () => ({
       status: 'pending',
     }),
   })),
+  createResultRepository: vi.fn(() => ({
+    create: vi.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+// Mock MetricsService
+vi.mock('../../src/infrastructure/monitoring/MetricsService.js', () => ({
+  metricsService: {
+    recordCacheHit: vi.fn(),
+    recordCacheMiss: vi.fn(),
+    recordCacheSet: vi.fn(),
+    recordCacheDelete: vi.fn(),
+  },
+}));
+
+// Mock CacheService
+vi.mock('../../src/infrastructure/cache/CacheService.js', () => ({
+  CacheService: vi.fn(function() {
+    return {
+      get: vi.fn(),
+      set: vi.fn(),
+      delete: vi.fn(),
+    };
+  }),
 }));
 
 // Mock 工作流
 vi.mock('../../src/domain/workflow/index.js', () => ({
+  WorkflowRegistry: {
+    getInstance: vi.fn(() => ({
+      createGraph: vi.fn(() => ({
+        invoke: vi.fn().mockResolvedValue({
+          taskId: 'test-1',
+          articleContent: 'Test content',
+          searchResults: [],
+          organizedInfo: 'Test info',
+        }),
+      })),
+      createState: vi.fn((params) => params),
+      validateParams: vi.fn(() => true),
+    })),
+  },
   createSimpleContentCreatorGraph: vi.fn(() => ({
     invoke: vi.fn().mockResolvedValue({
       taskId: 'test-1',

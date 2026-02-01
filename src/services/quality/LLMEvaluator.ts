@@ -5,7 +5,7 @@
  * 包括：相关性、连贯性、完整性、可读性等多维度评分
  */
 
-import { llmService } from '../llm/LLMService.js';
+import { enhancedLLMService } from '../llm/EnhancedLLMService.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 
 const logger = createLogger('LLMEvaluator');
@@ -88,10 +88,16 @@ export class LLMEvaluator {
       const systemPrompt = this.buildSystemPrompt();
       const userPrompt = this.buildUserPrompt(content, requirements);
 
-      const { text: response, usage } = await llmService.generateTextWithUsage(
-        userPrompt,
-        systemPrompt
-      );
+      const llmResponse = await enhancedLLMService.chat({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        stream: true, // 启用流式请求
+      });
+
+      const response = llmResponse.content;
+      const usage = llmResponse.usage;
 
       const result = this.parseResponse(response, usage);
 
@@ -292,7 +298,7 @@ ${truncatedContent}
     } catch (error) {
       logger.warn('Failed to parse LLM response, using default values', {
         error: (error as Error).message,
-        response: response.substring(0, 200),
+        response: response ? response.substring(0, 200) : 'empty response',
       });
 
       // 解析失败时返回默认值

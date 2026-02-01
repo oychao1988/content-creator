@@ -7,9 +7,20 @@
 import { config as dotenvConfig } from 'dotenv';
 import { z } from 'zod';
 
-// 加载环境变量（如果在非测试环境）
-if (process.env.NODE_ENV !== 'test') {
-  dotenvConfig();
+// 加载环境变量
+// 注意：测试环境也需要加载环境变量（如 Redis URL）
+// 明确指定 .env 文件路径，确保从项目根目录加载
+import { resolve } from 'path';
+const envPath = resolve(process.cwd(), '.env');
+const result = dotenvConfig({ path: envPath });
+
+// 如果 dotenv 没有自动写入 process.env（可能在某些测试环境中），手动写入
+if (result.parsed) {
+  for (const key in result.parsed) {
+    if (!process.env[key]) {
+      process.env[key] = result.parsed[key]!;
+    }
+  }
 }
 
 /**
@@ -32,7 +43,8 @@ const envSchema = z.object({
   POSTGRES_SSL: z.coerce.boolean().default(false).optional(),
 
   // Redis 配置（可选，仅在使用队列/缓存/限流时需要）
-  REDIS_URL: z.string().url().optional(),
+  // 空字符串表示禁用 Redis
+  REDIS_URL: z.union([z.string().url(), z.literal('')]).optional(),
   REDIS_PASSWORD: z.string().optional(),
   REDIS_DB: z.coerce.number().int().nonnegative().default(0).optional(),
 
@@ -43,6 +55,16 @@ const envSchema = z.object({
   LLM_MAX_TOKENS: z.coerce.number().int().positive().default(4000),
   LLM_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.7),
   LLM_ENABLE_CACHE: z.coerce.boolean().default(true).optional(),
+  LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(60000), // LLM 请求超时（毫秒）
+  LLM_STREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(120000), // LLM 流式请求超时（毫秒）
+
+  // LLM 服务类型配置
+  LLM_SERVICE_TYPE: z.enum(['api', 'cli']).default('api'), // LLM 服务类型：api 或 cli
+
+  // Claude CLI 配置
+  CLAUDE_CLI_ENABLED: z.coerce.boolean().default(false).optional(), // 是否启用 CLI
+  CLAUDE_CLI_DEFAULT_MODEL: z.enum(['sonnet', 'opus']).default('sonnet'), // CLI 默认模型
+  CLAUDE_CLI_DEFAULT_TIMEOUT: z.coerce.number().int().positive().default(120000), // CLI 默认超时（毫秒）
 
   // Tavily API (MCP Search)
   TAVILY_API_KEY: z.string().min(1),
@@ -243,8 +265,8 @@ class Config {
 
   get redis() {
     return {
-      enabled: !!this.env.REDIS_URL,
-      url: this.env.REDIS_URL,
+      enabled: !!this.env.REDIS_URL && this.env.REDIS_URL !== '',
+      url: this.env.REDIS_URL && this.env.REDIS_URL !== '' ? this.env.REDIS_URL : undefined,
       password: this.env.REDIS_PASSWORD,
       db: this.env.REDIS_DB ?? 0,
       // 连接池配置
@@ -270,6 +292,25 @@ class Config {
       maxTokens: this.env.LLM_MAX_TOKENS,
       temperature: this.env.LLM_TEMPERATURE,
       enableCache: this.env.LLM_ENABLE_CACHE ?? true,
+      timeout: this.env.LLM_TIMEOUT_MS,
+      streamTimeout: this.env.LLM_STREAM_TIMEOUT_MS,
+    };
+  }
+
+  // ========== LLM 服务类型配置 ==========
+
+  get llmServiceType(): 'api' | 'cli' {
+    return this.env.LLM_SERVICE_TYPE;
+  }
+
+  // ========== Claude CLI 配置 ==========
+
+  get claudeCLI() {
+    return {
+      enabled: this.env.CLAUDE_CLI_ENABLED || this.env.LLM_SERVICE_TYPE === 'cli',
+      defaultModel: this.env.CLAUDE_CLI_DEFAULT_MODEL,
+      defaultTimeout: this.env.CLAUDE_CLI_DEFAULT_TIMEOUT,
+      enableMCP: false, // TODO: 从环境变量读取
     };
   }
 
