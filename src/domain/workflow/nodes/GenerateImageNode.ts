@@ -161,10 +161,20 @@ export class GenerateImageNode extends BaseNode {
 
     try {
       // 1. 使用 WriteNode 生成的图片提示词
-      const imagePrompts = state.imagePrompts;
+      const imagePromptsFromState = state.imagePrompts;
 
-      if (!imagePrompts || imagePrompts.length === 0) {
-        throw new Error('No image prompts found in state. WriteNode should generate them.');
+      const imagePrompts =
+        imagePromptsFromState && imagePromptsFromState.length > 0
+          ? imagePromptsFromState
+          : [
+              `Professional illustration about ${state.topic}, modern clean style, no text, high quality`,
+            ];
+
+      if (!imagePromptsFromState || imagePromptsFromState.length === 0) {
+        logger.warn('No image prompts found in state, using fallback prompt', {
+          taskId: state.taskId,
+          fallbackCount: imagePrompts.length,
+        });
       }
 
       logger.info('Using image prompts from WriteNode', {
@@ -194,6 +204,7 @@ export class GenerateImageNode extends BaseNode {
       });
 
       return {
+        imagePrompts,
         images,
       };
     } catch (error) {
@@ -216,11 +227,6 @@ export class GenerateImageNode extends BaseNode {
    */
   protected validateState(state: WorkflowState): void {
     super.validateState(state);
-
-    // 检查是否有图片提示词（由 WriteNode 生成）
-    if (!state.imagePrompts || state.imagePrompts.length === 0) {
-      throw new Error('Image prompts are required for image generation. WriteNode should generate them.');
-    }
   }
 }
 

@@ -99,7 +99,8 @@ export class CheckImageNode extends BaseNode {
   private async evaluateImage(
     imageUrl: string,
     prompt: string,
-    topic: string
+    topic: string,
+    taskId: string
   ): Promise<ImageQualityCheckOutput> {
     logger.debug('Evaluating image', {
       imageUrl: imageUrl.substring(0, 50) + '...',
@@ -135,7 +136,7 @@ export class CheckImageNode extends BaseNode {
         { role: 'system', content: systemMessage },
         { role: 'user', content: checkPrompt },
       ],
-      taskId: '', // 这里没有 taskId，使用空字符串
+      taskId,
       stepName: 'checkImage',
       stream: true, // 启用流式请求
     });
@@ -177,8 +178,6 @@ export class CheckImageNode extends BaseNode {
 
   /**
    * 执行质检逻辑
-   *
-   * 阶段二优化：如果没有图片，自动生成图片后再质检
    */
   protected async executeLogic(state: WorkflowState): Promise<Partial<WorkflowState>> {
     logger.info('Starting image quality check', {
@@ -188,31 +187,8 @@ export class CheckImageNode extends BaseNode {
     });
 
     try {
-      // ========== 阶段二优化：自动生成图片 ==========
-      // 1. 检查是否有图片，如果没有则生成
-      let imagesToCheck = state.images;
-      let generatedImages: any = null;
-      if (!imagesToCheck || imagesToCheck.length === 0) {
-        logger.info('No images found, generating images first', {
-          taskId: state.taskId,
-        });
-
-        // 动态导入 GenerateImageNode 避免循环依赖
-        const { GenerateImageNode } = await import('./GenerateImageNode.js');
-        const generateImageNode = new GenerateImageNode();
-
-        // 调用 GenerateImageNode 生成图片
-        const generateResult = await generateImageNode.execute(state);
-
-        logger.info('Images generated, proceeding to quality check', {
-          taskId: state.taskId,
-          imageCount: (generateResult as any).images?.length || 0,
-        });
-
-        // 使用生成的图片
-        imagesToCheck = (generateResult as any).images || [];
-        generatedImages = generateResult;
-      }
+      // 1. 检查是否有图片
+      const imagesToCheck = state.images;
 
       // 测试环境下直接返回默认质检报告，避免 LLM 调用
       // 只在集成测试（taskId 以 test- 开头）时使用默认评分
@@ -242,9 +218,23 @@ export class CheckImageNode extends BaseNode {
         };
       }
 
-      // 2. 验证有图片后再评估
+      // 2. 至少需要一张图片（否则返回失败，让工作流重试 generateImage）
       if (!imagesToCheck || imagesToCheck.length === 0) {
-        throw new Error('No images found after generation');
+        const qualityReport: QualityReport = {
+          score: 0,
+          passed: false,
+          hardConstraintsPassed: false,
+          details: {
+            imageScores: [],
+          },
+          fixSuggestions: ['图片生成失败：未生成任何图片'],
+          checkedAt: Date.now(),
+        };
+
+        return {
+          imageQualityReport: qualityReport,
+          imageRetryCount: (state.imageRetryCount || 0) + 1,
+        };
       }
 
       // 3. 评估所有图片
@@ -254,7 +244,8 @@ export class CheckImageNode extends BaseNode {
             return await this.evaluateImage(
               image.url,
               image.prompt,
-              state.topic
+              state.topic,
+              state.taskId
             );
           } catch (error) {
             logger.error('Failed to evaluate image', {
@@ -320,12 +311,6 @@ export class CheckImageNode extends BaseNode {
       const result: Partial<WorkflowState> = {
         imageQualityReport: qualityReport,
       };
-
-      // 如果生成了新图片，需要在返回值中包含它们
-      if (generatedImages && generatedImages.images && generatedImages.images.length > 0) {
-        result.images = generatedImages.images;
-        result.imagePrompts = generatedImages.imagePrompts;
-      }
 
       if (!passed) {
         result.imageRetryCount = (state.imageRetryCount || 0) + 1;
