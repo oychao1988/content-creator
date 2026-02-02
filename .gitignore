@@ -38,9 +38,15 @@ data/images/
 test-results/
 test-full-output.log
 
+# repo root artifacts
+/content-creator.db
+/temp_image.jpeg
+
+# runtime logs
+/logs/*.json
+
 # 进度文档和报告（不纳入版本控制）
 docs/reports/
 docs/development/
 docs/workflow/WORKFLOW-EXTENSION-PROGRESS.md
->> .gitignore
 NPM-PUBLISH-CHECKLIST.md
