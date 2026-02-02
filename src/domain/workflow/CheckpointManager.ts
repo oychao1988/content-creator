@@ -46,7 +46,7 @@ export class CheckpointManager {
     taskId: string,
     stepName: string,
     state: WorkflowState
-  ): Promise<void> {
+  ): Promise<number | null> {
     try {
       logger.debug('Saving checkpoint', {
         taskId,
@@ -56,12 +56,29 @@ export class CheckpointManager {
       // 创建检查点快照（只保存必要字段）
       const snapshot = StateSnapshotManager.createCheckpoint(state);
 
+      // 读取当前任务版本，确保乐观锁写入成功
+      const task = await this.taskRepo.findById(taskId);
+      if (!task) {
+        logger.warn('Failed to save checkpoint: task not found', {
+          taskId,
+          stepName,
+        });
+        return null;
+      }
+
       // 保存到数据库（使用 State 快照）
-      await this.taskRepo.saveStateSnapshot(
-        taskId,
-        snapshot,
-        state.version
-      );
+      const ok = await this.taskRepo.saveStateSnapshot(taskId, snapshot, task.version);
+      if (!ok) {
+        logger.warn('Failed to save checkpoint due to version mismatch', {
+          taskId,
+          stepName,
+          expectedVersion: task.version,
+        });
+        return null;
+      }
+
+      const nextVersion = task.version + 1;
+      (snapshot as any).version = nextVersion;
 
       // 同时保存到内存（快速访问）
       this.checkpoints.set(taskId, {
@@ -76,6 +93,8 @@ export class CheckpointManager {
         stepName,
         keys: Object.keys(snapshot),
       });
+
+      return nextVersion;
     } catch (error) {
       logger.error('Failed to save checkpoint', {
         taskId,
@@ -83,6 +102,7 @@ export class CheckpointManager {
         error: error instanceof Error ? error.message : String(error),
       });
       // 不抛出错误，避免影响主流程
+      return null;
     }
   }
 
@@ -113,10 +133,14 @@ export class CheckpointManager {
         return null;
       }
 
+      const stepNameFromSnapshot = (task.stateSnapshot as any)?.currentStep as
+        | string
+        | undefined;
+
       // 创建检查点
       const checkpoint: Checkpoint = {
         taskId,
-        stepName: task.currentStep || 'unknown',
+        stepName: stepNameFromSnapshot || task.currentStep || 'unknown',
         state: task.stateSnapshot,
         timestamp: task.updatedAt,
       };

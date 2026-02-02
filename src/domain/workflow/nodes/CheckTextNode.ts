@@ -13,6 +13,7 @@ import type { ILLMService } from '../../../services/llm/ILLMService.js';
 import { LLMServiceFactory } from '../../../services/llm/LLMServiceFactory.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
 import { createQualityCheckCache, type IQualityCheckCache, generateCacheKey } from '../../../infrastructure/cache/QualityCheckCache.js';
+import { PromptLoader } from '../../prompts/PromptLoader.js';
 
 const logger = createLogger('CheckTextNode');
 
@@ -82,28 +83,13 @@ interface LLMQualityCheckOutput {
 /**
  * 质检 Prompt 模板
  *
- * 优化：精简 prompt，减少 token 消耗，提升响应速度
+ * 提示词正文从外部文件加载，便于频繁测试与迭代
  */
-const CHECK_PROMPT = `评估文章质量并返回JSON。
+const CHECK_TEXT_PROMPT_PATH = 'content-creator/checkText.md';
 
-内容：
-{articleContent}
-
-约束：字数 {minWords}-{maxWords}，关键词：{keywords}
-
-评分维度（1-10分）：
-- relevance（相关性）
-- coherence（连贯性）
-- completeness（完整性）
-- readability（可读性）
-
-硬规则检查：字数、关键词、结构（标题/导语/正文/结语）
-
-返回格式：
-{"score":8.5,"passed":true,"hardConstraintsPassed":true,"details":{"hardRules":{"passed":true,"wordCount":{"passed":true,"wordCount":1200},"keywords":{"passed":true,"found":["AI"],"required":["AI"]},"structure":{"passed":true,"checks":{"hasTitle":true,"hasIntro":true,"hasBody":true,"hasConclusion":true}}},"softScores":{"relevance":{"score":9,"reason":"内容切题"},"coherence":{"score":8,"reason":"逻辑通顺"},"completeness":{"score":8.5,"reason":"结构完整"},"readability":{"score":8,"reason":"语言流畅"}}},"fixSuggestions":["建议1"]}
-
-要求：纯JSON，无额外文字，数值用数字
-`;
+const CHECK_TEXT_OUTPUT_CONTRACT = `\n\n返回格式（必须严格遵循，纯JSON）：\n` +
+  `{"score":8.5,"passed":true,"hardConstraintsPassed":true,"details":{"hardRules":{"passed":true,"wordCount":{"passed":true,"wordCount":1200},"keywords":{"passed":true,"found":["AI"],"required":["AI"]},"structure":{"passed":true,"checks":{"hasTitle":true,"hasIntro":true,"hasBody":true,"hasConclusion":true}}},"softScores":{"relevance":{"score":9,"reason":"内容切题"},"coherence":{"score":8,"reason":"逻辑通顺"},"completeness":{"score":8.5,"reason":"结构完整"},"readability":{"score":8,"reason":"语言流畅"}}},"fixSuggestions":["建议1"]}\n` +
+  `要求：纯JSON，无额外文字，数值用数字`;
 
 /**
  * CheckText Node 配置
@@ -208,9 +194,13 @@ export class CheckTextNode extends BaseNode {
     };
 
     if (state.hardConstraints.keywords && state.hardConstraints.keywords.length > 0) {
-      keywordsCheck.found = state.hardConstraints.keywords.filter((keyword) =>
-        content.includes(keyword)
-      );
+      const normalizedContent = content.toLowerCase();
+      keywordsCheck.found = state.hardConstraints.keywords
+        .map((k) => k.trim())
+        .filter((keyword) => {
+          if (!keyword) return false;
+          return normalizedContent.includes(keyword.toLowerCase());
+        });
 
       // 测试环境下只要求至少找到50%的关键词
       if (isTestEnvironment) {
@@ -324,32 +314,27 @@ export class CheckTextNode extends BaseNode {
       };
     }
 
-    // 1. 构建 Prompt
-    const prompt = CHECK_PROMPT.replace(
-      '{articleContent}',
-      state.articleContent!.substring(0, 3000) // 限制长度，避免 Token 过多
-    )
-      .replace(
-        '{minWords}',
-        String(state.hardConstraints.minWords || 500)
-      )
-      .replace(
-        '{maxWords}',
-        String(state.hardConstraints.maxWords || 1000)
-      )
-      .replace(
-        '{keywords}',
-        state.hardConstraints.keywords?.join(', ') || '无'
-      );
+    // 1. 构建 System Prompt（系统提示词来自 md，变量信息在节点内结构化拼接）
+    const baseSystemPrompt = await PromptLoader.load(CHECK_TEXT_PROMPT_PATH);
+    const minWords = String(state.hardConstraints.minWords || 500);
+    const maxWords = String(state.hardConstraints.maxWords || 1000);
+    const keywords = state.hardConstraints.keywords?.join(', ') || '无';
+
+    const systemPrompt =
+      `${baseSystemPrompt.trim()}\n\n` +
+      `内容（截断）：\n${state.articleContent!.substring(0, 3000)}\n\n` +
+      `硬性约束：\n` +
+      `- 字数：${minWords}-${maxWords}\n` +
+      `- 关键词：${keywords}\n` +
+      `- 结构：标题/导语/正文/结语\n` +
+      `${CHECK_TEXT_OUTPUT_CONTRACT}`;
 
     // 2. 调用 LLM（一次性获取软评分和改进建议）
-    const systemMessage =
-      '你是一位专业的内容审核专家。请严格按照 JSON 格式返回。';
 
     const result = await this.getLLMService().chat({
       messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: prompt },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: '开始' },
       ],
       taskId: state.taskId,
       stepName: 'checkText',

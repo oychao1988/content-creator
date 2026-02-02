@@ -278,7 +278,7 @@ async function executeTask(workflowType: string, params: any, priority: string) 
       const spinner = ora('初始化中...').start();
 
       // 添加进度回调
-      const taskId = uuidv4();
+      const taskId = params.taskId || uuidv4();
       executor.onProgress(taskId, (progress) => {
         spinner.text = `${progress.message} (${progress.percentage}%)`;
       });

@@ -11,6 +11,7 @@ import type { QualityCheckDetails } from '../../entities/QualityCheck.js';
 import type { ILLMService } from '../../../services/llm/ILLMService.js';
 import { LLMServiceFactory } from '../../../services/llm/LLMServiceFactory.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
+import { PromptLoader } from '../../prompts/PromptLoader.js';
 
 const logger = createLogger('CheckImageNode');
 
@@ -31,25 +32,13 @@ interface ImageQualityCheckOutput {
 /**
  * 质检 Prompt 模板
  *
- * 优化：精简 prompt，减少 token 消耗，提升响应速度
+ * 提示词正文从外部文件加载，便于频繁测试与迭代
  */
-const CHECK_IMAGE_PROMPT = `评估图片质量并返回JSON。
+const CHECK_IMAGE_PROMPT_PATH = 'content-creator/checkImage.md';
 
-图片URL：{imageUrl}
-提示词：{prompt}
-主题：{topic}
-
-评分（1-10分）：
-- relevanceScore：与主题相关性
-- aestheticScore：美学质量
-- promptMatch：提示词匹配度
-
-格式：
-{"score":8.0,"passed":true,"details":{"relevanceScore":8.5,"aestheticScore":7.5,"promptMatch":8.0},"fixSuggestions":["建议1"]}
-
-标准：9-10优秀，7-8良好，5-6一般，1-4差
-要求：纯JSON，<7分需提建议
-`;
+const CHECK_IMAGE_OUTPUT_CONTRACT = `\n\n格式（必须严格遵循，纯JSON）：\n` +
+  `{"score":8.0,"passed":true,"details":{"relevanceScore":8.5,"aestheticScore":7.5,"promptMatch":8.0},"fixSuggestions":["建议1"]}\n` +
+  `要求：纯JSON，<7分需提建议`;
 
 /**
  * CheckImage Node 配置
@@ -122,19 +111,22 @@ export class CheckImageNode extends BaseNode {
       };
     }
 
-    // 1. 构建 Prompt
-    const checkPrompt = CHECK_IMAGE_PROMPT.replace('{imageUrl}', imageUrl)
-      .replace('{prompt}', prompt)
-      .replace('{topic}', topic);
+    // 1. 构建 System Prompt（系统提示词来自 md，变量信息在节点内结构化拼接）
+    const baseSystemPrompt = await PromptLoader.load(CHECK_IMAGE_PROMPT_PATH);
+
+    const systemPrompt =
+      `${baseSystemPrompt.trim()}\n\n` +
+      `图片URL：${imageUrl}\n` +
+      `提示词：${prompt}\n` +
+      `主题：${topic}\n\n` +
+      `${CHECK_IMAGE_OUTPUT_CONTRACT}`;
 
     // 2. 调用 LLM
-    const systemMessage =
-      '你是一位专业的图片审核专家。请严格按照 JSON 格式返回。';
 
     const result = await this.llmService.chat({
       messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: checkPrompt },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: '开始' },
       ],
       taskId,
       stepName: 'checkImage',

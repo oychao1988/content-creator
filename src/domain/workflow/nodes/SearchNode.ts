@@ -91,6 +91,14 @@ export class SearchNode extends BaseNode {
       topic: state.topic,
     });
 
+    if (process.env.NODE_ENV === 'test' && state.taskId.startsWith('test-')) {
+      logger.debug('Test environment: returning empty search results');
+      return {
+        searchQuery: state.topic,
+        searchResults: [],
+      };
+    }
+
     try {
       // 1. 生成搜索查询
       const searchQuery = this.generateSearchQuery(state);

@@ -120,16 +120,24 @@ function wrapNodeWithCheckpoint(
       // 执行节点逻辑
       const result = await node(state);
 
-      // 保存检查点
-      await checkpointManager.saveCheckpoint(state.taskId, nodeName, {
+      const nextState = {
         ...state,
         ...result,
-      } as unknown as WorkflowState);
+        currentStep: nodeName,
+      } as unknown as WorkflowState;
+
+      // 保存检查点
+      const nextVersion = await checkpointManager.saveCheckpoint(
+        state.taskId,
+        nodeName,
+        nextState
+      );
 
       // 更新步骤
       return {
         ...result,
         currentStep: nodeName,
+        ...(nextVersion !== null ? { version: nextVersion } : {}),
       } as unknown as Partial<WorkflowState>;
     } catch (error) {
       logger.error(`Node ${nodeName} failed`, {
@@ -168,7 +176,7 @@ export function createContentCreatorGraph(): any {
     checkTextNodeFn
   );
   const generateImageNodeWithCheckpoint = wrapNodeWithCheckpoint(
-    'generateImage',
+    'generate_image',
     generateImageNodeFn
   );
   const checkImageNodeWithCheckpoint = wrapNodeWithCheckpoint(
@@ -176,7 +184,7 @@ export function createContentCreatorGraph(): any {
     checkImageNodeFn
   );
   const postProcessNodeWithCheckpoint = wrapNodeWithCheckpoint(
-    'postProcess',
+    'post_process',
     postProcessNodeFn
   );
 

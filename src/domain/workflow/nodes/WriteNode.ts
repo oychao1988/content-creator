@@ -9,6 +9,7 @@ import { BaseNode } from './BaseNode.js';
 import type { WorkflowState } from '../State.js';
 import { LLMServiceFactory } from '../../../services/llm/LLMServiceFactory.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
+import { PromptLoader } from '../../prompts/PromptLoader.js';
 
 const logger = createLogger('WriteNode');
 
@@ -30,80 +31,20 @@ interface WriteOutput {
 /**
  * 初始写作 Prompt 模板
  *
- * 优化：精简 prompt，减少 token 消耗，提升响应速度
- * 同时生成文章和图片提示词
+ * 提示词正文从外部文件加载，便于频繁测试与迭代
  */
-const WRITE_PROMPT = `根据信息撰写文章并生成配图提示词，返回JSON格式。
-
-主题：{topic}
-要求：{requirements}
-
-⚠️ 字数要求（最高优先级）：{minWords}-{maxWords}字
-关键词：{keywords}
-
-资料：
-- 搜索结果：{searchResults}
-- 大纲：{outline}
-- 关键点：{keyPoints}
-
-要求：
-1. 字数严格在{minWords}-{maxWords}之间
-2. 原创、逻辑清晰、语言流畅
-3. 包含标题/导语/正文/结语
-4. 自然融入所有关键词
-5. 在合适位置插入2-3个图片占位符
-
-图片占位符规则：
-- 格式：![图片描述](image-placeholder-N)
-- N从1开始递增（image-placeholder-1, image-placeholder-2...）
-- 描述要简洁（10字内），与段落主题相关
-- 均匀分布：引言后、主要章节后
-
-输出JSON格式（必须严格遵循）：
-{
-  "articleContent": "Markdown文章内容（含占位符）",
-  "imagePrompts": ["提示词1", "提示词2", "提示词3"]
-}
-
-配图提示词要求：
-- 50字内，描述视觉元素/风格/氛围
-- 无文字，适合AI图片生成
-- 与对应占位符位置内容相关
-`;
+const WRITE_PROMPT_PATH = 'content-creator/write.md';
 
 /**
  * 重写 Prompt 模板（有质检反馈时）
  *
- * 优化：精简 prompt，减少 token 消耗，提升响应速度
- * 同时修改文章和更新图片提示词
+ * 提示词正文从外部文件加载，便于频繁测试与迭代
  */
-const REWRITE_PROMPT = `根据质检反馈修改文章，输出JSON格式。
+const REWRITE_PROMPT_PATH = 'content-creator/rewrite.md';
 
-🚨 字数问题（最高优先级）：
-{hasWordCountIssue}
-{wordCountFeedback}
-
-⚠️ 目标：{minWords}-{maxWords}字
-策略：{strategy}
-
-其他反馈：{fixSuggestions}
-
-要求：
-1. 必须解决字数问题（{minWords}-{maxWords}之间）
-2. 修复其他问题，保持核心观点
-3. 包含所有关键词：{keywords}
-4. 保持逻辑连贯
-5. 保留或调整图片占位符（如果有图片问题）
-
-原文章：
-{previousContent}
-
-输出JSON格式（必须严格遵循）：
-{
-  "articleContent": "修改后的Markdown文章（含占位符）",
-  "imagePrompts": ["提示词1", "提示词2", "提示词3"]
-}
-`;
+const WRITE_OUTPUT_CONTRACT = `\n\n输出JSON格式（必须严格遵循）：\n` +
+  `{"articleContent":"Markdown文章内容（含占位符）","imagePrompts":["提示词1","提示词2"]}\n` +
+  `要求：纯JSON，不要包含任何其他文字或 Markdown 代码块标记`;
 
 /**
  * Write Node 实现
@@ -248,49 +189,85 @@ export class WriteNode extends BaseNode {
   }
 
   /**
-   * 构建 Prompt 参数
+   * 构建完整的 System Prompt（系统提示词来自 md，变量信息在节点内结构化拼接）
    */
-  private buildPromptParams(state: WorkflowState): Record<string, string> {
+  private async buildSystemPrompt(state: WorkflowState): Promise<string> {
+    const isRewrite = this.isRewriteMode(state);
+    const promptPath = isRewrite ? REWRITE_PROMPT_PATH : WRITE_PROMPT_PATH;
+    const baseSystemPrompt = await PromptLoader.load(promptPath);
+
+    const minWords = String(state.hardConstraints.minWords || 500);
+    const maxWords = String(state.hardConstraints.maxWords || 1000);
+    const keywords = state.hardConstraints.keywords?.join(', ') || '无';
+
+    const imagePlaceholderRules =
+      `图片占位符规则：\n` +
+      `- 格式：![图片描述](image-placeholder-N)\n` +
+      `- N 从 1 开始递增\n` +
+      `- 描述 10 字内，与段落主题相关\n` +
+      `- 插入 2-3 个，占位符均匀分布\n\n` +
+      `配图提示词要求：\n` +
+      `- 50 字内，描述视觉元素/风格/氛围\n` +
+      `- 无文字，适合 AI 图片生成\n` +
+      `- 与对应占位符位置内容相关`;
+
+    const structureHardRules =
+      `结构硬性要求：\n` +
+      `- 必须包含标题：以 \`# \` 开头\n` +
+      `- 必须包含导语/引言段落（标题后至少一个空行分段）\n` +
+      `- 正文需要分段（至少 3 个空行分段）\n` +
+      `- 必须包含“结语”章节（标题中包含“结语”二字）`;
+
+    if (!isRewrite) {
+      const formattedResults = this.formatSearchResults(state.searchResults);
+
+      return (
+        `${baseSystemPrompt.trim()}\n\n` +
+        `主题：${state.topic}\n` +
+        `要求：${state.requirements}\n\n` +
+        `字数要求（最高优先级）：${minWords}-${maxWords}字（必须严格满足）\n` +
+        `关键词（必须全部原样出现）：${keywords}\n\n` +
+        `资料：\n` +
+        `- 搜索结果：${formattedResults}\n` +
+        `- 大纲：${state.organizedInfo?.outline || ''}\n` +
+        `- 关键点：${state.organizedInfo?.keyPoints?.join('\n') || ''}\n\n` +
+        `${imagePlaceholderRules}\n\n` +
+        `${structureHardRules}` +
+        `${WRITE_OUTPUT_CONTRACT}`
+      );
+    }
+
     const { hasWordCountIssue, wordCountFeedback } = this.extractWordCountFeedback(state);
+    const strategy = this.getWordCountStrategyTemplate(state);
+    const fixSuggestions = state.textQualityReport?.fixSuggestions?.join('\n') || '';
+    const previousContent = state.previousContent || '';
 
-    return {
-      topic: state.topic,
-      requirements: state.requirements,
-      minWords: String(state.hardConstraints.minWords || 500),
-      maxWords: String(state.hardConstraints.maxWords || 1000),
-      keywords: state.hardConstraints.keywords?.join(', ') || '无',
-      searchResults: this.formatSearchResults(state.searchResults),
-      outline: state.organizedInfo?.outline || '',
-      keyPoints: state.organizedInfo?.keyPoints?.join('\n') || '',
-      previousContent: state.previousContent || '',
-      fixSuggestions:
-        state.textQualityReport?.fixSuggestions?.join('\n') || '',
-      // 🆕 添加专门字数反馈字段
-      hasWordCountIssue: hasWordCountIssue ? '是' : '否',
-      wordCountFeedback: wordCountFeedback,
-      strategy: this.getWordCountStrategyTemplate(state),
-    };
-  }
-
-  /**
-   * 构建 Prompt
-   */
-  private buildPrompt(
-    state: WorkflowState,
-    params: Record<string, string>
-  ): string {
-    const template = this.isRewriteMode(state) ? REWRITE_PROMPT : WRITE_PROMPT;
-
-    return template.replace(/\{(\w+)\}/g, (_, key) => params[key] || '');
+    return (
+      `${baseSystemPrompt.trim()}\n\n` +
+      `字数问题：\n` +
+      `${hasWordCountIssue ? '是' : '否'}\n` +
+      `${wordCountFeedback}\n\n` +
+      `目标字数（最高优先级）：${minWords}-${maxWords}字（必须严格满足）\n` +
+      `策略：${strategy}\n\n` +
+      `其他反馈：\n${fixSuggestions}\n\n` +
+      `原文章：\n${previousContent}\n\n` +
+      `要求：\n` +
+      `- 必须解决字数问题（严格控制在范围内）\n` +
+      `- 修复其他问题，保持核心观点\n` +
+      `- 必须包含所有关键词（必须全部原样出现）：${keywords}\n` +
+      `- 保持逻辑连贯\n` +
+      `- 保留或调整图片占位符（如有需要）\n` +
+      `- 同时更新配图提示词（如果文章结构调整导致配图变化）\n\n` +
+      `${imagePlaceholderRules}\n\n` +
+      `${structureHardRules}` +
+      `${WRITE_OUTPUT_CONTRACT}`
+    );
   }
 
   /**
    * 调用 LLM 生成/重写文章
    */
-  private async callLLM(
-    state: WorkflowState,
-    prompt: string
-  ): Promise<string> {
+  private async callLLM(state: WorkflowState, systemPrompt: string): Promise<string> {
     const isRewrite = this.isRewriteMode(state);
 
     // 测试环境下直接返回默认文章内容，避免 LLM 调用
@@ -412,20 +389,13 @@ ${state.topic}在实际生活中有着广泛的应用场景：
 
     logger.debug('Calling LLM to write article', logContext);
 
-    // 🆕 系统提示词：要求返回 JSON 格式
-    const WRITE_SYSTEM_MESSAGE =
-      '你是一位专业的内容创作者和配图策划。' +
-      '请严格按照 JSON 格式返回，包含文章内容和配图提示词。' +
-      '文章中插入图片占位符，格式：![描述](image-placeholder-N)。' +
-      '不要包含任何其他文字说明或 markdown 代码块标记。';
-
     // 🆕 使用 LLMServiceFactory 根据配置动态选择服务
     const llmService = LLMServiceFactory.create();
 
     const result = await llmService.chat({
       messages: [
-        { role: 'system', content: WRITE_SYSTEM_MESSAGE },
-        { role: 'user', content: prompt },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: '开始' },
       ],
       taskId: state.taskId,
       stepName: 'write',
@@ -554,11 +524,10 @@ ${state.topic}在实际生活中有着广泛的应用场景：
 
     try {
       // 1. 构建 Prompt
-      const params = this.buildPromptParams(state);
-      const prompt = this.buildPrompt(state, params);
+      const systemPrompt = await this.buildSystemPrompt(state);
 
       // 2. 调用 LLM（返回 JSON 字符串）
-      const jsonResult = await this.callLLM(state, prompt);
+      const jsonResult = await this.callLLM(state, systemPrompt);
 
       // 3. 解析 JSON 响应
       let output: WriteOutput;

@@ -10,6 +10,7 @@ import type { OrganizedInfo } from '../State.js';
 import type { ILLMService } from '../../../services/llm/ILLMService.js';
 import { LLMServiceFactory } from '../../../services/llm/LLMServiceFactory.js';
 import { createLogger } from '../../../infrastructure/logging/logger.js';
+import { PromptLoader } from '../../prompts/PromptLoader.js';
 
 const logger = createLogger('OrganizeNode');
 
@@ -36,26 +37,13 @@ interface OrganizeNodeConfig {
 /**
  * Organize Node Prompt 模板
  *
- * 优化：精简 prompt，减少 token 消耗，提升响应速度
+ * 提示词正文从外部文件加载，便于频繁测试与迭代
  */
-const ORGANIZE_PROMPT = `根据搜索结果整理文章大纲和关键点，返回JSON。
+const ORGANIZE_PROMPT_PATH = 'content-creator/organize.md';
 
-选题：{topic}
-要求：{requirements}
-
-搜索结果：
-{searchResults}
-
-输出：
-1. outline：Markdown大纲（#主标题 ##章节 ###小节）
-2. keyPoints：{minKeyPoints}-{maxKeyPoints}个关键点（50-100字/个）
-3. summary：摘要（{minSummaryLength}-{maxSummaryLength}字）
-
-格式：
-{"outline":"# 标题\n\n## 章节1\n内容...","keyPoints":["关键点1","关键点2"],"summary":"摘要"}
-
-要求：纯JSON，Markdown格式，数量和长度符合要求
-`;
+const ORGANIZE_OUTPUT_CONTRACT = `\n\n输出JSON格式（必须严格遵循）：\n` +
+  `{"outline":"# 标题\\n\\n## 章节1\\n内容...","keyPoints":["关键点1","关键点2"],"summary":"摘要"}\n` +
+  `要求：纯JSON，不要包含任何其他文字或 Markdown 代码块标记`;
 
 /**
  * Organize Node 实现
@@ -145,16 +133,20 @@ export class OrganizeNode extends BaseNode {
       };
     }
 
-    // 1. 构建 Prompt
+    // 1. 构建 System Prompt（系统提示词来自 md，变量信息在节点内结构化拼接）
+    const baseSystemPrompt = await PromptLoader.load(ORGANIZE_PROMPT_PATH);
     const formattedResults = this.formatSearchResults(state.searchResults);
 
-    const prompt = ORGANIZE_PROMPT.replace('{topic}', state.topic)
-      .replace('{requirements}', state.requirements)
-      .replace('{searchResults}', formattedResults)
-      .replace('{minKeyPoints}', String(this.config.minKeyPoints))
-      .replace('{maxKeyPoints}', String(this.config.maxKeyPoints))
-      .replace('{minSummaryLength}', String(this.config.minSummaryLength))
-      .replace('{maxSummaryLength}', String(this.config.maxSummaryLength));
+    const systemPrompt =
+      `${baseSystemPrompt.trim()}\n\n` +
+      `选题：${state.topic}\n` +
+      `要求：${state.requirements}\n\n` +
+      `搜索结果：\n${formattedResults}\n\n` +
+      `输出要求：\n` +
+      `1. outline：Markdown大纲（#主标题 ##章节 ###小节）\n` +
+      `2. keyPoints：${this.config.minKeyPoints}-${this.config.maxKeyPoints}个关键点（50-100字/个）\n` +
+      `3. summary：摘要（${this.config.minSummaryLength}-${this.config.maxSummaryLength}字）` +
+      `${ORGANIZE_OUTPUT_CONTRACT}`;
 
     // 2. 调用 LLM
     logger.debug('Calling LLM to organize content', {
@@ -162,16 +154,13 @@ export class OrganizeNode extends BaseNode {
       searchResultsCount: state.searchResults?.length || 0,
     });
 
-    const systemMessage =
-      '你是一位专业的内容策划。请严格按照要求输出 JSON 格式，不要包含任何其他内容。';
-
     // 🆕 使用 LLMServiceFactory 根据配置动态选择服务
     const llmService = this.getLLMService();
 
     const result = await llmService.chat({
       messages: [
-        { role: 'system', content: systemMessage },
-        { role: 'user', content: prompt },
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: '开始' },
       ],
       taskId: state.taskId,
       stepName: 'organize',
