@@ -136,6 +136,7 @@ export class TaskWorker {
         mode: data.mode === 'sync' ? ExecutionMode.SYNC : ExecutionMode.ASYNC,
         topic: data.topic,
         requirements: data.requirements,
+        imageSize: data.imageSize,
         hardConstraints: data.hardConstraints,
       });
 

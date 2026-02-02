@@ -16,11 +16,22 @@ import {
 } from '../fixtures/common-fixtures.js';
 
 // Mock EnhancedLLMService
-vi.mock('../../src/services/llm/EnhancedLLMService.js', () => ({
-  enhancedLLMService: {
+vi.mock('../../src/services/llm/EnhancedLLMService.js', () => {
+  const enhancedLLMService = {
     chat: vi.fn(),
-  },
-}));
+  };
+
+  class EnhancedLLMService {
+    async chat(...args: any[]) {
+      return (enhancedLLMService as any).chat(...args);
+    }
+  }
+
+  return {
+    enhancedLLMService,
+    EnhancedLLMService,
+  };
+});
 
 import { enhancedLLMService } from '../../src/services/llm/EnhancedLLMService.js';
 
@@ -33,7 +44,10 @@ describe('@unit WriteNode', () => {
 
     // 默认 mock 返回 - 使用 fixtures 中的标准文章
     vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-      content: articleContentFixtures.standard,
+      content: JSON.stringify({
+        articleContent: articleContentFixtures.standard,
+        imagePrompts: [],
+      }),
       usage: {
         promptTokens: 100,
         completionTokens: 200,
@@ -180,7 +194,10 @@ describe('@unit WriteNode', () => {
     it('should reject content that does not meet word count requirement', async () => {
       // Arrange - Mock 返回短内容
       vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-        content: articleContentFixtures.tooShort,
+        content: JSON.stringify({
+          articleContent: articleContentFixtures.tooShort,
+          imagePrompts: [],
+        }),
         usage: {
           promptTokens: 100,
           completionTokens: 200,
@@ -210,7 +227,10 @@ describe('@unit WriteNode', () => {
     it('should reject content missing required keywords', async () => {
       // Arrange - Mock 返回缺少关键词的内容
       vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-        content: articleContentFixtures.missingKeywords,
+        content: JSON.stringify({
+          articleContent: articleContentFixtures.missingKeywords,
+          imagePrompts: [],
+        }),
         usage: {
           promptTokens: 100,
           completionTokens: 200,

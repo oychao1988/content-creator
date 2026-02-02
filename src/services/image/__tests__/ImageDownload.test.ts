@@ -21,8 +21,8 @@ describe('ImageService - 图片下载功能', () => {
     const pngFilename = imageService.generateImageFilename(taskId, 0, 'png');
     const jpgFilename = imageService.generateImageFilename(taskId, 1, 'jpg');
 
-    expect(pngFilename).endsWith('.png');
-    expect(jpgFilename).endsWith('.jpg');
+    expect(pngFilename).toMatch(/\.png$/);
+    expect(jpgFilename).toMatch(/\.jpg$/);
   });
 
   // TODO: 添加实际下载测试（需要 mock axios 和 fs）

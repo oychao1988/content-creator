@@ -109,6 +109,7 @@ export class SyncExecutor {
         targetAudience: task.targetAudience,
         keywords: task.keywords,
         tone: task.tone,
+        imageSize: params.imageSize,
         hardConstraints: task.hardConstraints,
       });
 

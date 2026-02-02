@@ -8,15 +8,15 @@ export default defineConfig({
     testTimeout: 300000, // 300 秒超时（5分钟 - 真实 LLM API 调用需要更长时间）
     hookTimeout: 60000, // 60 秒钩子超时
 
-    // 测试文件匹配模式
-    include: {
-      unit: ['tests/**/*.test.ts', '!tests/integration/**', '!tests/performance/**'],
-      integration: ['tests/integration/**/*.test.ts'],
-      performance: ['tests/performance/**/*.test.ts'],
-    },
+    include: [
+      'tests/**/*.test.ts',
+      'src/**/__tests__/**/*.test.ts',
+    ],
 
-    // 测试标签配置
-    testMatch: ['**/*.test.ts', '**/*.bench.test.ts'],
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+    ],
     includeSource: ['src/**/*.ts'],
 
     coverage: {

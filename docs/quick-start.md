@@ -116,6 +116,7 @@ async function main() {
     mode: ExecutionMode.SYNC,
     topic: 'Web 开发的最佳实践',
     requirements: '写一篇关于现代 Web 开发最佳实践的文章',
+    imageSize: '1920x1080',
     hardConstraints: {
       minWords: 600,
       maxWords: 1200,
@@ -241,6 +242,7 @@ pnpm run worker
 pnpm run cli create \
   --topic "Web 开发最佳实践" \
   --requirements "写一篇关于现代 Web 开发的文章" \
+  --image-size "1920x1080" \
   --mode async
 
 # 4. 在浏览器中访问 http://localhost:3000/admin/queues

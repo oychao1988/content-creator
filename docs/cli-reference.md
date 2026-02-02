@@ -71,6 +71,7 @@ pnpm run cli create [options]
 | `--audience` | `-a` | 目标受众 | ❌ | 普通读者 |
 | `--keywords` | - | 关键词（逗号分隔） | ❌ | - |
 | `--tone` | - | 语气风格 | ❌ | 专业 |
+| `--image-size` | - | 图片尺寸（如 1920x1080） | ❌ | 1920x1920 |
 | `--min-words` | - | 最小字数 | ❌ | 500 |
 | `--max-words` | - | 最大字数 | ❌ | 2000 |
 | `--mode` | - | 执行模式 (sync\|async) | ❌ | sync |
@@ -105,6 +106,7 @@ pnpm run cli create \
   --requirements "提供实用的健康生活建议" \
   --audience "普通读者" \
   --tone "亲切友好" \
+  --image-size "1920x1080" \
   --keywords "健康,生活,养生" \
   --min-words 800 \
   --max-words 1200 \

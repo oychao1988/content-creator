@@ -135,15 +135,9 @@ describe('ContentCreator Workflow Integration Tests', () => {
       // Mock persistent quality check failure
       // This would cause the workflow to fail after 3 attempts
 
-      const result = await graph.invoke(initialState);
-
-      // 验证工作流确实失败了
-      expect(result).toBeDefined();
-      expect(result).toHaveProperty('error');
-      expect(result).toHaveProperty('textQualityReport');
-      expect(result.textQualityReport).toHaveProperty('passed', false);
-      expect(result.textQualityReport).toHaveProperty('hardConstraintsPassed', false);
-      expect(result.textQualityReport.score).toBeLessThan(5); // 低于测试环境的及格分数（5分）
+      await expect(graph.invoke(initialState)).rejects.toThrow(
+        'Text quality check failed after 3 attempts'
+      );
     }, 600000);
   });
 

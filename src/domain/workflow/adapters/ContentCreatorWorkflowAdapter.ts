@@ -25,6 +25,7 @@ const logger = createLogger('ContentCreatorWorkflowAdapter');
 export interface ContentCreatorParams extends WorkflowParams {
   topic: string;                   // 选题（必需）
   requirements: string;            // 写作要求（必需）
+  imageSize?: string;              // 图片尺寸，如 "1920x1080"
   targetAudience?: string;         // 目标受众
   keywords?: string[];             // 关键词
   tone?: string;                   // 语调
@@ -175,6 +176,18 @@ export class ContentCreatorWorkflowAdapter implements WorkflowFactory<WorkflowSt
         }
       }
 
+      // 验证 imageSize（可选，格式如 1920x1080）
+      if (contentParams.imageSize !== undefined) {
+        if (typeof contentParams.imageSize !== 'string') {
+          logger.error('Invalid imageSize', { imageSize: contentParams.imageSize });
+          return false;
+        }
+        if (!/^\d+x\d+$/.test(contentParams.imageSize)) {
+          logger.error('Invalid imageSize format', { imageSize: contentParams.imageSize });
+          return false;
+        }
+      }
+
       logger.debug('Content-creator workflow params validated successfully', {
         taskId: params.taskId,
       });
@@ -207,7 +220,7 @@ export class ContentCreatorWorkflowAdapter implements WorkflowFactory<WorkflowSt
       docsUrl: 'https://github.com/your-repo/content-creator',
       icon: '✍️',
       requiredParams: ['taskId', 'mode', 'topic', 'requirements'],
-      optionalParams: ['targetAudience', 'keywords', 'tone', 'hardConstraints'],
+      optionalParams: ['targetAudience', 'keywords', 'tone', 'hardConstraints', 'imageSize'],
       examples: [
         {
           name: '基础示例',
@@ -217,6 +230,7 @@ export class ContentCreatorWorkflowAdapter implements WorkflowFactory<WorkflowSt
             mode: 'sync',
             topic: '人工智能技术发展史',
             requirements: '写一篇 2000 字的科普文章，介绍人工智能的发展历程',
+            imageSize: '1920x1920',
           },
         },
         {
@@ -230,6 +244,7 @@ export class ContentCreatorWorkflowAdapter implements WorkflowFactory<WorkflowSt
             targetAudience: '技术爱好者',
             keywords: ['区块链', '去中心化', '加密算法'],
             tone: '专业但不晦涩',
+            imageSize: '1920x1080',
             hardConstraints: {
               minWords: 3000,
               maxWords: 5000,
@@ -282,6 +297,14 @@ export class ContentCreatorWorkflowAdapter implements WorkflowFactory<WorkflowSt
           type: 'object',
           required: false,
         },
+        {
+          name: 'imageSize',
+          description: '图片尺寸（格式如 1920x1080）',
+          type: 'string',
+          required: false,
+          defaultValue: '1920x1920',
+          examples: ['1920x1920', '1920x1080'],
+        },
       ],
       // 步骤名称映射
       stepNames: {
@@ -331,6 +354,7 @@ export class ContentCreatorWorkflowAdapter implements WorkflowFactory<WorkflowSt
       mode: params.mode,
       topic: (params as any).topic || '',
       requirements: (params as any).requirements || '',
+      imageSize: (params as any).imageSize,
       targetAudience: (params as any).targetAudience,
       keywords: (params as any).keywords,
       tone: (params as any).tone,

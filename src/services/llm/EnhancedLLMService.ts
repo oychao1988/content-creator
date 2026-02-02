@@ -302,24 +302,65 @@ export class EnhancedLLMService implements ILLMService {
     let completionTokens = 0;
     let totalTokens = 0;
 
+    let sseBuffer = '';
+
     return new Promise((resolve, reject) => {
       const chunks: Buffer[] = [];
 
       response.data.on('data', (chunk: Buffer) => {
         chunks.push(chunk);
 
-        // 解析 SSE 数据
-        const chunkStr = chunk.toString('utf-8');
-        const lines = chunkStr.split('\n').filter(line => line.trim() !== '');
+        // 解析 SSE 数据（注意：SSE 的单行可能会跨 chunk 分片）
+        sseBuffer += chunk.toString('utf-8');
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() || '';
 
-            if (data === '[DONE]') {
-              continue;
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line) {
+            continue;
+          }
+
+          if (!line.startsWith('data: ')) {
+            continue;
+          }
+
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            continue;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta;
+
+            if (delta?.content) {
+              fullContent += delta.content;
             }
 
+            if (parsed.choices?.[0]?.finish_reason) {
+              finishReason = parsed.choices[0].finish_reason;
+            }
+
+            // 从最后一个 chunk 获取 usage 信息
+            if (parsed.usage) {
+              promptTokens = parsed.usage.prompt_tokens || 0;
+              completionTokens = parsed.usage.completion_tokens || 0;
+              totalTokens = parsed.usage.total_tokens || 0;
+            }
+          } catch {
+            // 忽略解析错误（例如服务端发送的非 JSON 行）
+          }
+        }
+      });
+
+      response.data.on('end', () => {
+        // 尝试处理 buffer 中最后一行（如果没有以 \n 结尾）
+        const lastLine = sseBuffer.trim();
+        if (lastLine.startsWith('data: ')) {
+          const data = lastLine.slice(6);
+          if (data && data !== '[DONE]') {
             try {
               const parsed = JSON.parse(data);
               const delta = parsed.choices?.[0]?.delta;
@@ -332,20 +373,17 @@ export class EnhancedLLMService implements ILLMService {
                 finishReason = parsed.choices[0].finish_reason;
               }
 
-              // 从最后一个 chunk 获取 usage 信息
               if (parsed.usage) {
                 promptTokens = parsed.usage.prompt_tokens || 0;
                 completionTokens = parsed.usage.completion_tokens || 0;
                 totalTokens = parsed.usage.total_tokens || 0;
               }
-            } catch (error) {
-              // 忽略解析错误（可能是空行或其他格式）
+            } catch {
+              // ignore
             }
           }
         }
-      });
 
-      response.data.on('end', () => {
         logger.debug('Stream request completed', {
           contentLength: fullContent.length,
           finishReason,

@@ -188,6 +188,11 @@ describe('CLI Workflow Commands Unit Tests', () => {
       expect(keywordsParam).toBeDefined();
       expect(keywordsParam?.type).toBe('array');
       expect(keywordsParam?.required).toBe(false);
+
+      const imageSizeParam = metadata?.paramDefinitions?.find(p => p.name === 'imageSize');
+      expect(imageSizeParam).toBeDefined();
+      expect(imageSizeParam?.type).toBe('string');
+      expect(imageSizeParam?.required).toBe(false);
     });
 
     it('should have paramDefinitions in translation metadata', () => {

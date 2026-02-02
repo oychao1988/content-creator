@@ -69,6 +69,7 @@ pnpm run cli create \
   --topic "人工智能的未来" \
   --requirements "写一篇关于 AI 未来发展的文章" \
   --audience "技术爱好者" \
+  --image-size "2560x1440" \
   --mode sync
 ```
 
@@ -316,6 +317,7 @@ pnpm run cli create \
 | `--keywords` | 关键词（逗号分隔） | ❌ | - |
 | `--min-words` | 最小字数 | ❌ | 500 |
 | `--max-words` | 最大字数 | ❌ | 2000 |
+| `--image-size` | 图片尺寸（如 1920x1080） | ❌ | 1920x1920 |
 | `--mode` | 执行模式 (sync\|async) | ❌ | sync |
 | `--sync` | 同步执行（等待结果） | ❌ | false |
 

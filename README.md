@@ -48,6 +48,7 @@ const result = await executor.execute({
   requirements: '写一篇关于 AI 技术发展趋势的文章',
   targetAudience: '技术爱好者',
   tone: '专业',
+  imageSize: '1920x1080',
 });
 ```
 
@@ -83,7 +84,7 @@ console.log(result.translatedText); // 输出: 你好世界
 content-creator workflow list
 
 # 创建内容创作任务
-content-creator create --topic "AI 技术" --requirements "写一篇文章" --mode sync
+content-creator create --topic "AI 技术" --requirements "写一篇文章" --mode sync --image-size "1920x1080"
 
 # 创建翻译任务
 content-creator create --type translation \

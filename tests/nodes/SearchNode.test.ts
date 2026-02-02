@@ -39,6 +39,7 @@ describe('SearchNode', () => {
         hardConstraints: {
           keywords: ['AI', '技术'],
         },
+        taskId: 'test-error-search-success',
       });
 
       const result = await searchNode.executeLogic(state);
@@ -55,6 +56,7 @@ describe('SearchNode', () => {
         hardConstraints: {
           keywords: ['AI', '人工智能'],
         },
+        taskId: 'test-error-search-keywords',
       });
 
       const result = await searchNode.executeLogic(state);
@@ -71,6 +73,7 @@ describe('SearchNode', () => {
 
       const state = createTestInitialState({
         topic: '未知主题',
+        taskId: 'test-error-search-empty',
       });
 
       const result = await searchNode.executeLogic(state);
@@ -111,6 +114,7 @@ describe('SearchNode', () => {
       const state = createTestInitialState({
         topic: 'AI 技术',
         hardConstraints: {},
+        taskId: 'test-error-search-topic-only',
       });
 
       const result = await searchNode.executeLogic(state);
@@ -124,6 +128,7 @@ describe('SearchNode', () => {
         hardConstraints: {
           keywords: ['技术', '发展'],
         },
+        taskId: 'test-error-search-topic-keywords',
       });
 
       const result = await searchNode.executeLogic(state);

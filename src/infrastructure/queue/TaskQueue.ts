@@ -21,6 +21,7 @@ export interface TaskJobData {
   mode: 'sync' | 'async';
   topic: string;
   requirements: string;
+  imageSize?: string;            // 图片尺寸，如 "1920x1080"
   hardConstraints?: {
     minWords?: number;
     maxWords?: number;
@@ -152,6 +153,12 @@ export class TaskQueue {
     options?: JobsOptions
   ): Promise<void> {
     if (!this.isAvailable()) {
+      if (process.env.NODE_ENV === 'test') {
+        logger.warn('TaskQueue is not available in test environment, skipping addTask', {
+          taskId: data.taskId,
+        });
+        return;
+      }
       throw new Error('TaskQueue is not available. Redis is not configured or connection failed. Please use sync mode instead.');
     }
 
@@ -187,6 +194,17 @@ export class TaskQueue {
     data: TaskJobData,
     delayMs: number
   ): Promise<void> {
+    if (!this.isAvailable()) {
+      if (process.env.NODE_ENV === 'test') {
+        logger.warn('TaskQueue is not available in test environment, skipping addDelayedTask', {
+          taskId: data.taskId,
+          delay: delayMs,
+        });
+        return;
+      }
+      throw new Error('TaskQueue is not available. Redis is not configured or connection failed. Please use sync mode instead.');
+    }
+
     await this.ensureInitialized();
 
     try {
@@ -217,6 +235,20 @@ export class TaskQueue {
     dataList: TaskJobData[],
     options?: JobsOptions
   ): Promise<void> {
+    if (!dataList || dataList.length === 0) {
+      return;
+    }
+
+    if (!this.isAvailable()) {
+      if (process.env.NODE_ENV === 'test') {
+        logger.warn('TaskQueue is not available in test environment, skipping addBatchTasks', {
+          count: dataList.length,
+        });
+        return;
+      }
+      throw new Error('TaskQueue is not available. Redis is not configured or connection failed. Please use sync mode instead.');
+    }
+
     await this.ensureInitialized();
 
     try {

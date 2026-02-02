@@ -101,6 +101,7 @@ export const taskFixtures = {
 export function createWorkflowState(overrides?: Partial<WorkflowState>): WorkflowState {
   return {
     taskId: 'test-task-' + Math.random().toString(36).substr(2, 9),
+    workflowType: 'content-creator',
     mode: ExecutionMode.ASYNC,
     topic: 'AI 技术的发展',
     requirements: '写一篇关于 AI 技术发展的文章',

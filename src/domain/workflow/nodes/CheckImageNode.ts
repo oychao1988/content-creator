@@ -210,12 +210,13 @@ export class CheckImageNode extends BaseNode {
         };
       }
 
-      // 2. 至少需要一张图片（否则返回失败，让工作流重试 generateImage）
+      // 2. 如果没有图片：不要阻断流程。
+      // 让后处理节点移除文章中的图片占位符，确保任务仍能产出可交付的文章。
       if (!imagesToCheck || imagesToCheck.length === 0) {
         const qualityReport: QualityReport = {
           score: 0,
-          passed: false,
-          hardConstraintsPassed: false,
+          passed: true,
+          hardConstraintsPassed: true,
           details: {
             imageScores: [],
           },
@@ -225,7 +226,6 @@ export class CheckImageNode extends BaseNode {
 
         return {
           imageQualityReport: qualityReport,
-          imageRetryCount: (state.imageRetryCount || 0) + 1,
         };
       }
 

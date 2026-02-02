@@ -120,6 +120,7 @@ export interface CreateTaskParams {
   requirements: string;
   targetAudience: string;
   type?: TaskType;               // 任务类型（可选）
+  imageSize?: string;            // 图片尺寸，如 "1920x1080"
   keywords?: string[];
   tone?: string;
   priority?: TaskPriority;

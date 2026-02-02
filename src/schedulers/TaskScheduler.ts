@@ -21,6 +21,7 @@ export interface CreateTaskRequest {
   mode: 'sync' | 'async';
   topic: string;
   requirements: string;
+  imageSize?: string;
   hardConstraints?: {
     minWords?: number;
     maxWords?: number;
@@ -150,6 +151,7 @@ export class TaskScheduler {
         mode: task.mode!,
         topic: task.topic!,
         requirements: task.requirements!,
+        imageSize: request.imageSize,
         hardConstraints: task.hardConstraints,
       };
 
@@ -247,6 +249,25 @@ export class TaskScheduler {
         if (request.hardConstraints.minWords > request.hardConstraints.maxWords) {
           throw new Error('minWords cannot be greater than maxWords');
         }
+      }
+    }
+
+    if (request.imageSize !== undefined) {
+      if (typeof request.imageSize !== 'string') {
+        throw new Error('imageSize must be a string');
+      }
+      const trimmed = request.imageSize.trim();
+      if (trimmed.length === 0) {
+        throw new Error('imageSize cannot be empty');
+      }
+      const match = trimmed.match(/^(\d+)x(\d+)$/);
+      if (!match) {
+        throw new Error('imageSize must be in format "WIDTHxHEIGHT" (e.g., 1920x1080)');
+      }
+      const width = Number(match[1]);
+      const height = Number(match[2]);
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+        throw new Error('imageSize width/height must be positive numbers');
       }
     }
   }

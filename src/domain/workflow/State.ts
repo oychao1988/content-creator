@@ -96,6 +96,7 @@ export interface WorkflowState extends BaseWorkflowState {
   imagePrompts?: string[];               // 配图提示词列表
 
   // 配图阶段
+  imageSize?: string;                   // 图片尺寸，如 "1920x1080"
   images?: GeneratedImage[];             // 生成的配图列表
   previousImages?: GeneratedImage[];     // 上一版配图（用于重生成）
 
@@ -119,6 +120,7 @@ export function createInitialState(params: {
   mode: ExecutionMode;
   topic: string;
   requirements: string;
+  imageSize?: string;
   targetAudience?: string;
   keywords?: string[];
   tone?: string;
@@ -147,6 +149,7 @@ export function createInitialState(params: {
     topic: params.topic,
     requirements: params.requirements,
     hardConstraints: params.hardConstraints || {},
+    imageSize: params.imageSize,
     textRetryCount: 0,
     imageRetryCount: 0,
   };
@@ -315,6 +318,7 @@ export class StateSnapshotManager {
       organizedInfo: state.organizedInfo,
       articleContent: state.articleContent,
       imagePrompts: state.imagePrompts,
+      imageSize: state.imageSize,
       images: state.images,
       previousContent: state.previousContent,
       previousImages: state.previousImages,

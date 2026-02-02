@@ -91,7 +91,11 @@ export class SearchNode extends BaseNode {
       topic: state.topic,
     });
 
-    if (process.env.NODE_ENV === 'test' && state.taskId.startsWith('test-')) {
+    if (
+      process.env.NODE_ENV === 'test' &&
+      state.taskId.startsWith('test-') &&
+      !state.taskId.includes('error-')
+    ) {
       logger.debug('Test environment: returning empty search results');
       return {
         searchQuery: state.topic,

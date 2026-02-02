@@ -13,6 +13,7 @@ import { ExecutionMode } from '../../src/domain/workflow/State.js';
 export function createTestInitialState(overrides?: Partial<WorkflowState>): WorkflowState {
   return {
     taskId: 'test-task-123',
+    workflowType: 'content-creator',
     mode: ExecutionMode.SYNC,
     topic: 'AI 技术的发展',
     requirements: '写一篇关于 AI 技术发展的文章',

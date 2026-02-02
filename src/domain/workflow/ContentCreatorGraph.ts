@@ -223,6 +223,11 @@ export function createContentCreatorGraph(): any {
         reducer: (x?: any, y?: any) => y ?? x ?? {},
       },
 
+      imageSize: {
+        default: () => undefined,
+        reducer: (x?: string, y?: string) => y ?? x,
+      },
+
       // 流程数据
       searchQuery: {
         default: () => undefined,
@@ -394,6 +399,11 @@ export function createSimpleContentCreatorGraph(): any {
       hardConstraints: {
         default: () => ({}),
         reducer: (x?: any, y?: any) => y ?? x ?? {},
+      },
+
+      imageSize: {
+        default: () => undefined,
+        reducer: (x?: string, y?: string) => y ?? x,
       },
 
       // 流程数据

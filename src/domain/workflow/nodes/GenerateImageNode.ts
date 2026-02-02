@@ -48,7 +48,69 @@ export class GenerateImageNode extends BaseNode {
   /**
    * 生成图片
    */
-  private async generateImages(prompts: string[], taskId: string): Promise<GeneratedImage[]> {
+  private parseImageSize(size?: string): { size: string; width: number; height: number } {
+    const defaultSize = '1920x1920';
+    const effectiveSize = size && size.trim().length > 0 ? size.trim() : defaultSize;
+
+    const minimumPixels = 3686400;
+
+    const match = effectiveSize.match(/^(\d+)x(\d+)$/);
+    if (!match) {
+      return { size: defaultSize, width: 1920, height: 1920 };
+    }
+
+    const width = Number(match[1]);
+    const height = Number(match[2]);
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return { size: defaultSize, width: 1920, height: 1920 };
+    }
+
+    const pixels = width * height;
+    if (pixels >= minimumPixels) {
+      return { size: effectiveSize, width, height };
+    }
+
+    // Doubao 对最小像素有硬性要求：>= 3686400。这里自动回退到最接近的安全尺寸。
+    const requestedRatio = width / height;
+    const presets = [
+      { width: 2560, height: 1440 },
+      { width: 1440, height: 2560 },
+      { width: 1920, height: 1920 },
+    ];
+
+    let best = presets[0]!;
+    let bestDiff = Number.POSITIVE_INFINITY;
+    for (const preset of presets) {
+      const ratio = preset.width / preset.height;
+      const diff = Math.abs(ratio - requestedRatio);
+      if (diff < bestDiff) {
+        best = preset;
+        bestDiff = diff;
+      }
+    }
+
+    logger.warn('Requested imageSize is not valid for Doubao, auto-adjusting to meet minimum pixel requirement', {
+      requestedSize: effectiveSize,
+      requestedPixels: pixels,
+      minimumPixels,
+      adjustedSize: `${best.width}x${best.height}`,
+      adjustedPixels: best.width * best.height,
+    });
+
+    return {
+      size: `${best.width}x${best.height}`,
+      width: best.width,
+      height: best.height,
+    };
+  }
+
+  private async generateImages(
+    prompts: string[],
+    taskId: string,
+    imageSize?: string
+  ): Promise<GeneratedImage[]> {
+    const parsedSize = this.parseImageSize(imageSize);
+
     if (!this.config.useImageGeneration) {
       const isTestEnvironment = process.env.NODE_ENV === 'test';
       logger.info('Image generation is disabled, returning mock images', {
@@ -63,8 +125,8 @@ export class GenerateImageNode extends BaseNode {
           url: `https://example.com/mock-image-${Date.now()}.png`,
           localPath: mockLocalPath,  // 🆕 添加本地路径
           prompt,
-          width: 1024,
-          height: 1024,
+          width: parsedSize.width,
+          height: parsedSize.height,
           format: 'png',
         };
       });
@@ -83,7 +145,7 @@ export class GenerateImageNode extends BaseNode {
 
             const result = await imageService.generateImage({
               prompt,
-              size: '1920x1920',  // Doubao 要求至少 3686400 像素
+              size: parsedSize.size,
               watermark: false,
             });
 
@@ -111,8 +173,8 @@ export class GenerateImageNode extends BaseNode {
               url: result.imageUrl,
               localPath,
               prompt,
-              width: 1024,
-              height: 1024,
+              width: parsedSize.width,
+              height: parsedSize.height,
               format: 'png',
             };
           } catch (error) {
@@ -157,6 +219,7 @@ export class GenerateImageNode extends BaseNode {
     logger.info('Starting image generation', {
       taskId: state.taskId,
       topic: state.topic,
+      imageSize: state.imageSize,
     });
 
     try {
@@ -183,7 +246,7 @@ export class GenerateImageNode extends BaseNode {
       });
 
       // 2. 生成图片（并下载到本地）
-      const images = await this.generateImages(imagePrompts, state.taskId);
+      const images = await this.generateImages(imagePrompts, state.taskId, state.imageSize);
 
       // 3. 检查是否至少有一张图片生成成功
       if (images.length === 0) {
@@ -205,6 +268,7 @@ export class GenerateImageNode extends BaseNode {
 
       return {
         imagePrompts,
+        imageSize: state.imageSize,
         images,
       };
     } catch (error) {

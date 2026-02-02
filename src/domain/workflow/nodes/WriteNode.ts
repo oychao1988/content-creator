@@ -272,7 +272,11 @@ export class WriteNode extends BaseNode {
 
     // 测试环境下直接返回默认文章内容，避免 LLM 调用
     // 只在集成测试（taskId 以 test- 开头）时使用默认内容
-    if (process.env.NODE_ENV === 'test' && state.taskId.startsWith('test-')) {
+    if (
+      process.env.NODE_ENV === 'test' &&
+      state.taskId.startsWith('test-') &&
+      !state.taskId.includes('error-')
+    ) {
       logger.debug('Test environment: returning default article content');
       const minWords = state.hardConstraints.minWords || 500;
       const maxWords = state.hardConstraints.maxWords || 1000;

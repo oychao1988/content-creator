@@ -16,6 +16,11 @@ vi.mock('../../src/services/llm/EnhancedLLMService.js', () => ({
   enhancedLLMService: {
     chat: vi.fn(),
   },
+  EnhancedLLMService: class {
+    async chat(...args: any[]) {
+      return (enhancedLLMService as any).chat(...args);
+    }
+  },
 }));
 
 // 导入 mock 后的 service
@@ -30,7 +35,10 @@ describe('WriteNode', () => {
 
     // 默认 mock 返回
     vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-      content: createMockArticleContent(),
+      content: JSON.stringify({
+        articleContent: createMockArticleContent(),
+        imagePrompts: [],
+      }),
       usage: {
         promptTokens: 100,
         completionTokens: 200,
@@ -62,7 +70,10 @@ describe('WriteNode', () => {
       const mediumContent = '# Medium Article\n\n' + 'This is a medium article. '.repeat(15); // ~300 characters
 
       vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-        content: mediumContent,
+        content: JSON.stringify({
+          articleContent: mediumContent,
+          imagePrompts: [],
+        }),
         usage: {
           promptTokens: 100,
           completionTokens: 200,
@@ -91,7 +102,10 @@ describe('WriteNode', () => {
     it('should validate keywords', async () => {
       const mockContent = createMockArticleContent();
       vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-        content: mockContent,
+        content: JSON.stringify({
+          articleContent: mockContent,
+          imagePrompts: [],
+        }),
         usage: {
           promptTokens: 100,
           completionTokens: 200,
@@ -107,6 +121,7 @@ describe('WriteNode', () => {
         hardConstraints: {
           keywords: ['AI', '人工智能'],
         },
+        taskId: 'test-error-keywords-validate',
       });
 
       const result = await writeNode.executeLogic(state);
@@ -120,7 +135,10 @@ describe('WriteNode', () => {
     it('should rewrite based on quality feedback', async () => {
       // Use createMockArticleContent which has >= 500 characters
       vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-        content: createMockArticleContent(),
+        content: JSON.stringify({
+          articleContent: createMockArticleContent(),
+          imagePrompts: [],
+        }),
         usage: {
           promptTokens: 100,
           completionTokens: 200,
@@ -225,7 +243,10 @@ describe('WriteNode', () => {
 
       // 通过 executeLogic 验证是否正确识别为重写模式
       vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-        content: createMockArticleContent(), // 使用符合约束的内容
+        content: JSON.stringify({
+          articleContent: createMockArticleContent(),
+          imagePrompts: [],
+        }), // 使用符合约束的内容
         usage: {
           promptTokens: 100,
           completionTokens: 200,
@@ -268,7 +289,10 @@ describe('WriteNode', () => {
 
     it('should handle word count validation error', async () => {
       vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-        content: 'Short', // Only 5 characters
+        content: JSON.stringify({
+          articleContent: 'Short', // Only 5 characters
+          imagePrompts: [],
+        }),
         usage: {
           promptTokens: 100,
           completionTokens: 200,
@@ -296,7 +320,10 @@ describe('WriteNode', () => {
 
     it('should handle keyword validation error', async () => {
       vi.mocked(enhancedLLMService.chat).mockResolvedValue({
-        content: 'Article without required keywords',
+        content: JSON.stringify({
+          articleContent: 'Article without required keywords',
+          imagePrompts: [],
+        }),
         usage: {
           promptTokens: 100,
           completionTokens: 200,
