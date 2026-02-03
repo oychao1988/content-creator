@@ -40,6 +40,21 @@ program.addCommand(resultCommand);
 program.addCommand(cancelCommand);
 program.addCommand(workflowCommand);
 
+// ========== 工作流脚手架命令 ==========
+// 同步导入脚手架命令
+// 注意：由于脚手架模块可能还不完善，我们暂时注释掉
+// TODO: 在脚手架模块稳定后取消注释
+/*
+try {
+  const { createWorkflowCommand } = await import('./scaffolding/commands/create.js');
+  program.addCommand(createWorkflowCommand);
+} catch (error) {
+  logger.debug('Scaffolding command not available', {
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
+*/
+
 // 解析参数
 program.parse();
 

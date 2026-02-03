@@ -17,6 +17,7 @@
 - ✅ 高可用：多 Worker 架构，自动故障恢复
 - ✅ 多工作流：支持内容创作和翻译工作流，可扩展
 - ✅ 插件化架构：通过 WorkflowRegistry 支持动态添加新工作流
+- ✅ AI 脚手架：用自然语言自动生成 LangGraph 工作流代码 🆕
 
 ---
 
@@ -105,7 +106,9 @@ content-creator create --type translation \
 更多使用示例，请查看：
 - [工作流扩展架构设计](./docs/workflow-extension-design.md)
 - [翻译工作流使用指南](./docs/translation-workflow-guide.md)
+- [AI-Native 工作流脚手架使用指南](./docs/guides/workflow-scaffolding-guide.md) 🆕
 - [示例代码](./src/examples/)
+- [工作流示例](./examples/workflows/) 🆕
 
 ---
 
@@ -123,6 +126,7 @@ content-creator create --type translation \
 | [⚙️ 工作流架构](./docs/workflow-architecture.md) | LangGraph 工作流详解 |
 | [🔌 工作流扩展架构](./docs/workflow-extension-design.md) | 多工作流插件化架构设计 |
 | [🌍 翻译工作流使用](./docs/translation-workflow-guide.md) | 翻译工作流详细使用说明 |
+| [🤖 AI-Native 工作流脚手架](./docs/guides/workflow-scaffolding-guide.md) | 用自然语言自动生成工作流代码 |
 | [✅ 质量检查架构](./docs/quality-check-architecture.md) | 质量检查系统设计 |
 | [💾 存储机制说明](./docs/storage-guide.md) | PostgreSQL 数据存储 |
 
