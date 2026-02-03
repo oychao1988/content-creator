@@ -8,6 +8,7 @@ import { createLogger } from '../../infrastructure/logging/logger.js';
 import { WorkflowRegistry } from './WorkflowRegistry.js';
 import { contentCreatorWorkflowAdapter } from './adapters/ContentCreatorWorkflowAdapter.js';
 import { translationWorkflowFactory } from './examples/TranslationWorkflow.js';
+import { contentCreatorAgentWorkflow } from './ContentCreatorAgentWorkflow.js';
 
 const logger = createLogger('WorkflowInit');
 
@@ -35,6 +36,12 @@ export function initializeWorkflows(): void {
   if (!WorkflowRegistry.has('translation')) {
     WorkflowRegistry.register(translationWorkflowFactory);
     logger.info('Registered workflow: translation');
+  }
+
+  // 注册 Agent 内容创作工作流
+  if (!WorkflowRegistry.has('content-creator-agent')) {
+    WorkflowRegistry.register(contentCreatorAgentWorkflow);
+    logger.info('Registered workflow: content-creator-agent');
   }
 
   logger.info(`Workflow initialization complete. Total workflows registered: ${WorkflowRegistry.count()}`);

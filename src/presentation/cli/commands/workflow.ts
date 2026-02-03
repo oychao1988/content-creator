@@ -266,6 +266,9 @@ workflowCommand
       // 根据工作流类型生成不同的示例命令
       if (type === 'content-creator') {
         console.log(chalk.gray('  pnpm run cli create --type content-creator --topic "主题" --requirements "要求"'));
+      } else if (type === 'content-creator-agent') {
+        console.log(chalk.gray('  pnpm run cli create --type content-creator-agent --topic "主题" --requirements "要求"'));
+        console.log(chalk.gray('  pnpm run cli create --type content-creator-agent --topic "量子计算" --requirements "写一篇科普文章" --target-audience "普通读者" --tone "科普友好"'));
       } else if (type === 'translation') {
         console.log(chalk.gray('  # 翻译工作流需要通过程序接口调用'));
         console.log(chalk.gray('  # 请参考文档或示例代码'));

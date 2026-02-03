@@ -429,6 +429,41 @@ function displayResult(workflowType: string, result: any, qualityCheckRepo: any)
     }
   }
 
+  // Content-Creator-Agent 工作流的结果展示
+  if (workflowType === 'content-creator-agent') {
+    // 显示生成的内容
+    const contentToDisplay = finalState.articleContent;
+    if (contentToDisplay) {
+      console.log(chalk.white.bold('\n📝 Agent 生成的内容:'));
+      printSeparator();
+      console.log(contentToDisplay);
+      printSeparator();
+    }
+
+    // 显示生成的图片
+    if (finalState.images && finalState.images.length > 0) {
+      console.log(chalk.white.bold('\n🖼️ 生成的配图:'));
+      printSeparator();
+      finalState.images.forEach((img: any) => {
+        const imagePath = img.localPath || img.url;
+        console.log(chalk.cyan(imagePath));
+      });
+      printSeparator();
+    }
+
+    // 显示 Agent 对话历史（如果有）
+    if (finalState.agentMessages && finalState.agentMessages.length > 0) {
+      console.log(chalk.white.bold('\n💭 Agent 思考过程:'));
+      printSeparator();
+      finalState.agentMessages.slice(-5).forEach((msg: any) => {
+        const role = msg.role === 'user' ? '👤 用户' : '🤖 Agent';
+        const content = msg.content.slice(0, 200) + (msg.content.length > 200 ? '...' : '');
+        console.log(chalk.gray(`${role}: ${content}`));
+      });
+      printSeparator();
+    }
+  }
+
   // Translation 工作流的结果展示
   if (workflowType === 'translation') {
     console.log(chalk.white.bold('\n🌐 翻译结果:'));

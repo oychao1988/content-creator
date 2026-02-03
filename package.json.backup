@@ -111,8 +111,8 @@
   "dependencies": {
     "@bull-board/api": "^6.16.2",
     "@bull-board/express": "^6.16.2",
-    "@langchain/core": "^0.3.80",
-    "@langchain/langgraph": "^0.2.74",
+    "@langchain/core": "^1.1.15",
+    "@langchain/langgraph": "^0.0.26",
     "@sentry/node": "^8.55.0",
     "axios": "^1.13.2",
     "better-sqlite3": "^12.6.2",

@@ -86,6 +86,14 @@ content-creator workflow list
 # 创建内容创作任务
 content-creator create --topic "AI 技术" --requirements "写一篇文章" --mode sync --image-size "1920x1080"
 
+# 创建 AI Agent 内容创作任务
+content-creator create --type content-creator-agent \
+  --topic "量子计算原理" \
+  --requirements "写一篇 1500 字的科普文章" \
+  --target-audience "普通读者" \
+  --tone "科普友好" \
+  --mode sync
+
 # 创建翻译任务
 content-creator create --type translation \
   --source-text "Hello World" \

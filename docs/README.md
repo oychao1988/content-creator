@@ -1,7 +1,7 @@
 # Content Creator 文档导航
 
-> **文档系统版本**: 2.0
-> **最后更新**: 2026-02-03
+> **文档系统版本**: 2.1
+> **最后更新**: 2026-02-03 (新增 ReAct Agent 使用指南)
 > **维护者**: Content Creator Team
 
 欢迎来到 Content Creator 项目文档中心！本文档采用**分类管理 + 状态跟踪 + 生命周期管理**体系。
@@ -20,6 +20,7 @@
 - [✅ 质量检查架构](./architecture/quality-check-architecture.md) - 质量检查系统设计
 
 ### 使用指南
+- [🤖 ReAct Agent 工作流指南](./guides/content-creator-agent-guide.md) - Agent 内容创作使用说明 **NEW**
 - [🌐 翻译工作流指南](./guides/translation-workflow-guide.md) - 翻译工作流使用说明
 - [📋 工作流适配器使用](./guides/workflow-adapter-usage.md) - 工作流适配器教程
 - [🔧 工作流扩展指南](./guides/workflow-extension-guide.md) - 如何扩展新工作流
@@ -45,12 +46,20 @@
 | [workflow-scaffolding-design.md](./design/workflow-scaffolding-design.md) | ❌ 待实施 | - | 工作流脚手架工具（14-20天） |
 | [workflow-scaffolding-example.ts](./design/workflow-scaffolding-example.ts) | ❌ 示例代码 | - | 脚手架代码示例 |
 | [agent-performance-evaluation-design.md](./design/agent-performance-evaluation-design.md) | ❌ 待实施 | - | Agent 性能评估系统 |
+| [content-creator-agent-design.md](./design/content-creator-agent-design.md) | ✅ 已实施 | 2026-02-03 | **ReAct Agent 工作流设计**（~5天） |
 | [cli-unified-design.md](./design/cli-unified-design.md) | ✅ 已实施 | 2026-02-01 | CLI 统一多工作流设计 |
 | [claude-cli-llm-service-design.md](./design/claude-cli-llm-service-design.md) | ✅ 已实施 | 2026-01-28 | Claude CLI LLM 服务设计 |
 
 > 💡 **提示**: ✅ = 已实施 | ❌ = 待实施 | 🔄 = 进行中
 
 ### 已实施功能详情
+
+**ReAct Agent 工作流** (2026-02-03)
+- 实现文件:
+  - `src/domain/workflow/ContentCreatorAgentWorkflow.ts` - Agent 工作流主文件
+  - `src/domain/workflow/tools/` - LangChain Tools（SearchTool, WriteTool, ImageGenerationTool）
+- 功能: 基于 LangGraph ReAct Agent 的智能内容创作，LLM 动态决策工具调用
+- 使用: `pnpm run cli create --type content-creator-agent --topic "主题" --requirements "要求"`
 
 **CLI 统一多工作流** (2026-02-01)
 - 实现文件: `src/presentation/cli/utils/WorkflowParameterMapper.ts`

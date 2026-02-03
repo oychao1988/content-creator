@@ -72,6 +72,11 @@ const envSchema = z.object({
   ARK_API_KEY: z.string().min(1),
   ARK_API_URL: z.string().url().optional(),
 
+  // Agent 配置
+  AGENT_ENABLED: z.coerce.boolean().default(false).optional(),
+  AGENT_MAX_ITERATIONS: z.coerce.number().int().positive().default(10).optional(),
+  AGENT_TIMEOUT: z.coerce.number().int().positive().default(300000).optional(),
+
   // 存储配置
   STORAGE_PROVIDER: z.enum(['local', 's3', 'oss', 'minio']).default('local'),
   STORAGE_PATH: z.string().default('./data/images'),
@@ -352,6 +357,16 @@ class Config {
     return {
       id: this.env.WORKER_ID,
       concurrency: this.env.WORKER_CONCURRENCY,
+    };
+  }
+
+  // ========== Agent 配置 ==========
+
+  get agent() {
+    return {
+      enabled: this.env.AGENT_ENABLED ?? false,
+      maxIterations: this.env.AGENT_MAX_ITERATIONS ?? 10,
+      timeout: this.env.AGENT_TIMEOUT ?? 300000,
     };
   }
 
