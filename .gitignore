@@ -31,7 +31,7 @@ dist/
 .env.local
 docs/DOCUMENTATION-ANALYSIS.md
 docs/SOURCE-CODE-ANALYSIS.md
-docs/archive/
+# docs/archive/  # 已移除，归档文档需要纳入版本控制
 .claude/tsc-cache/
 data/content-creator.db*
 data/images/
@@ -46,7 +46,7 @@ test-full-output.log
 /logs/*.json
 
 # 进度文档和报告（不纳入版本控制）
-docs/reports/
-docs/development/
+# docs/reports/  # 已移除，项目报告需要纳入版本控制
+# docs/development/  # 已移除，开发文档需要纳入版本控制
 docs/workflow/WORKFLOW-EXTENSION-PROGRESS.md
 NPM-PUBLISH-CHECKLIST.md

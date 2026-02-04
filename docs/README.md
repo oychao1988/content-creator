@@ -1,7 +1,7 @@
 # Content Creator 文档导航
 
-> **文档系统版本**: 2.2
-> **最后更新**: 2026-02-04 (AI-Native 工作流脚手架实施完成)
+> **文档系统版本**: 2.3
+> **最后更新**: 2026-02-05 (Scaffold 类型安全修复和 CLI 测试增强)
 > **维护者**: Content Creator Team
 
 欢迎来到 Content Creator 项目文档中心！本文档采用**分类管理 + 状态跟踪 + 生命周期管理**体系。
@@ -142,7 +142,9 @@
 | [database-refactoring-PLAN.md](./development/database-refactoring-PLAN.md) | 计划 | 部分完成 |
 | [database-refactoring-SUMMARY.md](./development/database-refactoring-SUMMARY.md) | 总结 | 已完成 |
 | [test-implementation-PLAN.md](./development/test-implementation-PLAN.md) | 计划 | 待实施 |
-| [test-implementation-SUMMARY.md](./development/test-implementation-SUMMARY.md) | 总结 | 待定 |
+| [test-implementation-SUMMARY.md](./development/test-implementation-SUMMARY.md) | 总结 | 已完成 |
+
+**历史开发文档**已移至：[archive/reports/](./archive/reports/)（包括 CLI E2E 测试报告等）
 
 ---
 
@@ -150,14 +152,15 @@
 
 项目进度和完成报告：
 
-| 文档 | 描述 |
-|------|------|
-| [PROJECT-COMPLETION-REPORT.md](./reports/PROJECT-COMPLETION-REPORT.md) | 项目整体完成报告 |
-| [STAGE-4-COMPLETION-REPORT.md](./reports/STAGE-4-COMPLETION-REPORT.md) | 阶段4完成报告 |
-| [STAGE6-COMPLETION-REPORT.md](./reports/STAGE6-COMPLETION-REPORT.md) | 阶段6完成报告 |
-| [TEST-FIX-REPORT.md](./reports/TEST-FIX-REPORT.md) | 测试修复报告 |
-| [WORKFLOW-SCAFFOLDING-FINAL-REPORT.md](./reports/WORKFLOW-SCAFFOLDING-FINAL-REPORT.md) | AI-Native 工作流脚手架完成报告 |
-| [WORKFLOW-SCAFFOLDING-TEST-REPORT.md](./reports/WORKFLOW-SCAFFOLDING-TEST-REPORT.md) | 工作流脚手架测试报告 |
+| 文档 | 描述 | 日期 |
+|------|------|------|
+| [PROJECT-COMPLETION-REPORT.md](./reports/PROJECT-COMPLETION-REPORT.md) | 项目整体完成报告 | 2026-02-03 |
+| [STAGE-4-COMPLETION-REPORT.md](./reports/STAGE-4-COMPLETION-REPORT.md) | 阶段4完成报告 | 2026-02-03 |
+| [STAGE6-COMPLETION-REPORT.md](./reports/STAGE6-COMPLETION-REPORT.md) | 阶段6完成报告 | 2026-02-04 |
+| [TEST-FIX-REPORT.md](./reports/TEST-FIX-REPORT.md) | 测试修复报告 | 2026-02-04 |
+| [WORKFLOW-SCAFFOLDING-FINAL-REPORT.md](./reports/WORKFLOW-SCAFFOLDING-FINAL-REPORT.md) | AI-Native 工作流脚手架完成报告 | 2026-02-04 |
+| [WORKFLOW-SCAFFOLDING-TEST-REPORT.md](./reports/WORKFLOW-SCAFFOLDING-TEST-REPORT.md) | 工作流脚手架测试报告 | 2026-02-04 |
+| [workflow-scaffolding-design-review-2026-02-04.md](./reports/workflow-scaffolding-design-review-2026-02-04.md) | 脚手架设计评审 | 2026-02-04 |
 
 ---
 

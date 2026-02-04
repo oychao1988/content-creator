@@ -1,6 +1,6 @@
 # 归档文档说明
 
-> **最后更新**: 2026-02-03
+> **最后更新**: 2026-02-05
 >
 > 本目录包含项目的历史文档，按类型组织以便查阅。
 
@@ -35,7 +35,16 @@ archive/
 │   ├── workflow-architecture-stage2.md
 │   ├── workflow-architecture-stage3.md
 │   ├── workflow-test-summary.md
-│   └── writenode-generateimage-optimization.md
+│   ├── writenode-generateimage-optimization.md
+│   ├── IMPLEMENTATION-REPORT.md            # 实施报告（2026-01-28）
+│   ├── TEST_ENHANCEMENT_SUMMARY.md         # 测试增强总结（2026-02-04）
+│   ├── test-results-summary.md             # 测试结果总结（2026-02-04）
+│   ├── PHASE1_COMPLETION_REPORT.md         # 阶段1完成报告
+│   ├── STAGE4_5_EXECUTION_SUMMARY.md       # 阶段4-5执行总结
+│   ├── test-lifecycle-implementation.md    # 测试生命周期实现（2026-02-04）
+│   ├── CLI-E2E-TEST-COMPLETION-REPORT.md   # CLI E2E测试完成报告（2026-02-04）
+│   ├── cli-e2e-testing-SUMMARY.md          # CLI E2E测试总结（2026-02-04）
+│   └── cli-e2e-testing-improvement-PLAN.md  # CLI E2E测试改进计划（2026-02-04）
 │
 └── implementation/      # 实现分析文档
     └── implementation-analysis/

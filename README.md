@@ -101,6 +101,10 @@ content-creator create --type translation \
   --source-language en \
   --target-language zh \
   --mode sync
+
+# 🆕 使用 AI 脚手架创建新工作流（自然语言描述）
+content-creator scaffold "创建一个文本摘要工作流"
+content-creator scaffold "实现多语言翻译工作流，支持质量检查" --yes
 ```
 
 更多使用示例，请查看：
@@ -430,6 +434,6 @@ MIT License
 
 ---
 
-**最后更新**：2026-01-28
-**当前版本**：v0.2.0
-**项目状态**：✅ 核心功能已完成，支持多工作流扩展
+**最后更新**：2026-02-05
+**当前版本**：v0.3.0
+**项目状态**：✅ 核心功能已完成，支持多工作流扩展和 AI 脚手架
