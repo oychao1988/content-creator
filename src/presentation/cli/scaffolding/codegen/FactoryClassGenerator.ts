@@ -10,7 +10,7 @@ import { createLogger } from '../../../../infrastructure/logging/logger.js';
 import type { WorkflowRequirement } from '../schemas/WorkflowRequirementSchema.js';
 import type { ProjectContext } from '../utils/contextBuilder.js';
 import { FACTORY_CLASS_GENERATION_PROMPT } from '../ai/prompts/generate-factory.js';
-import { toPascalCase, toCamelCase } from './utils.js';
+import { cleanGeneratedCode, extractCodeFromLLMResponse, toPascalCase, toCamelCase } from './utils.js';
 
 const logger = createLogger('FactoryClassGenerator');
 
@@ -69,8 +69,8 @@ export class FactoryClassGenerator {
       });
 
       // 3. 提取并清理代码
-      let code = this.extractCode(response.content);
-      code = this.cleanCode(code);
+      let code = extractCodeFromLLMResponse(response.content);
+      code = cleanGeneratedCode(code);
 
       const duration = Date.now() - startTime;
       logger.info('Factory class generated successfully', {
@@ -111,38 +111,6 @@ export class FactoryClassGenerator {
     const requirementJSON = JSON.stringify(requirement, null, 2);
 
     return `${FACTORY_CLASS_GENERATION_PROMPT}\n\n## 工厂信息\n\n\`\`\`json\n${factoryJSON}\n\`\`\`\n\n## 工作流需求\n\n\`\`\`json\n${requirementJSON}\n\`\`\`\n\n请根据以上信息生成 WorkflowFactory 工厂类代码。`;
-  }
-
-  /**
-   * 从 LLM 响应中提取代码
-   */
-  private extractCode(content: string): string {
-    let code = content.trim();
-
-    if (code.startsWith('```typescript')) {
-      code = code.slice(12);
-    } else if (code.startsWith('```ts')) {
-      code = code.slice(5);
-    } else if (code.startsWith('```')) {
-      code = code.slice(3);
-    }
-
-    if (code.endsWith('```')) {
-      code = code.slice(0, -3);
-    }
-
-    return code.trim();
-  }
-
-  /**
-   * 清理代码
-   */
-  private cleanCode(code: string): string {
-    return code
-      .split('\n')
-      .map((line) => line.trimEnd())
-      .join('\n')
-      .replace(/\n{3,}/g, '\n\n');
   }
 
   /**

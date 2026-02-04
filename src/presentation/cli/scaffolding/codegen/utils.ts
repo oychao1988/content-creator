@@ -5,13 +5,72 @@
  */
 
 /**
+ * 安全的代码清理函数
+ * 统一处理所有代码生成器的代码清理需求
+ */
+export function cleanGeneratedCode(code: unknown): string {
+  // 类型检查
+  if (typeof code !== 'string') {
+    return '';
+  }
+
+  if (!code) {
+    return '';
+  }
+
+  try {
+    return code
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n');
+  } catch (error) {
+    return String(code);
+  }
+}
+
+/**
+ * 从 LLM 响应中提取代码块
+ * 统一处理所有代码提取需求
+ */
+export function extractCodeFromLLMResponse(content: unknown): string {
+  if (typeof content !== 'string') {
+    return '';
+  }
+
+  if (!content) {
+    return '';
+  }
+
+  let code = content.trim();
+
+  // 移除 markdown 代码块标记
+  if (code.startsWith('```typescript')) {
+    code = code.slice(12);
+  } else if (code.startsWith('```ts')) {
+    code = code.slice(5);
+  } else if (code.startsWith('```')) {
+    code = code.slice(3);
+  }
+
+  if (code.endsWith('```')) {
+    code = code.slice(0, -3);
+  }
+
+  return code.trim();
+}
+
+/**
  * 转换为 PascalCase
  *
  * @example
  * toPascalCase('content-creator') => 'ContentCreator'
  * toPascalCase('translate_node') => 'TranslateNode'
  */
-export function toPascalCase(str: string): string {
+export function toPascalCase(str: unknown): string {
+  if (typeof str !== 'string') {
+    return '';
+  }
   return str
     .replace(/[-_](.)/g, (_, char) => char.toUpperCase())
     .replace(/^(.)/, (_, char) => char.toUpperCase())
@@ -25,8 +84,11 @@ export function toPascalCase(str: string): string {
  * toCamelCase('content-creator') => 'contentCreator'
  * toCamelCase('Translate_Node') => 'translateNode'
  */
-export function toCamelCase(str: string): string {
+export function toCamelCase(str: unknown): string {
   const pascal = toPascalCase(str);
+  if (!pascal) {
+    return '';
+  }
   return pascal.charAt(0).toLowerCase() + pascal.slice(1);
 }
 
@@ -190,12 +252,25 @@ export function generateNodeImports(nodeClasses: string[], relativePath: string 
  * @param code - 原始代码
  * @returns 清理后的代码
  */
-export function cleanCode(code: string): string {
-  return code
-    .split('\n')
-    .map((line) => line.trimEnd())
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n'); // 最多两个连续换行
+export function cleanCode(code: unknown): string {
+  // 类型检查
+  if (typeof code !== 'string') {
+    return '';
+  }
+
+  if (!code) {
+    return '';
+  }
+
+  try {
+    return code
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n'); // 最多两个连续换行
+  } catch (error) {
+    return String(code);
+  }
 }
 
 /**

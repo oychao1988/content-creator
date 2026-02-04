@@ -7,7 +7,8 @@
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import ora, { Ora } from 'ora';
+import ora from 'ora';
+import type { Spinner as Ora } from 'ora';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -119,16 +120,9 @@ async function executeCreateWorkflow(
 
   // ==================== 阶段 3: 可视化预览 ====================
   spinner.start('生成工作流预览...');
-  const preview = await VisualizationPreviewSystem.displayPreview(
-    requirement,
-    context.projectContext
-  );
+  const previewSystem = new VisualizationPreviewSystem();
+  await previewSystem.displayPreview(requirement);
   spinner.succeed('预览生成完成');
-
-  // 显示预览
-  console.log();
-  console.log(preview);
-  console.log();
 
   // ==================== 阶段 4: 交互式确认 ====================
   if (options.interactive && !options.yes && !options.preview) {
@@ -277,9 +271,7 @@ async function generateRequirement(
 
   spinner.text = 'AI 正在优化设计...';
   const optimized = await context.understandingEngine.optimizeRequirement(
-    understanding.requirement,
-    understanding.suggestions,
-    context.projectContext
+    understanding.requirement
   );
 
   return optimized.requirement;
@@ -385,7 +377,8 @@ async function registerWorkflow(requirement: WorkflowRequirement): Promise<boole
   try {
     // 构建工作流类型
     const workflowName = toPascalCase(requirement.type);
-    const importPath = `./workflows/${workflowName}`;
+    // 文件在 src/domain/workflows/${workflowName}/，需要从 src/domain/workflow/initialize.ts 导入
+    const importPath = `../workflows/${workflowName}`;
 
     // 更新 initialize.ts（如果存在）
     const initFilePath = path.join(process.cwd(), 'src', 'domain', 'workflow', 'initialize.ts');

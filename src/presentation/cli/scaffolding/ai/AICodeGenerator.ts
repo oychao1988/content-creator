@@ -17,6 +17,7 @@ import { FactoryClassGenerator } from '../codegen/FactoryClassGenerator.js';
 import { CodePostProcessor, type WorkflowFiles } from '../codegen/CodePostProcessor.js';
 import {
   toPascalCase,
+  toCamelCase,
   workflowTypeToStateName,
   nodeNameToClassName,
   generateImports,
@@ -124,17 +125,45 @@ export class AICodeGenerator {
 
       // 4. 生成工作流图
       logger.info('Step 4/6: Generating workflow graph');
-      const nodeClassNames = Array.from(nodeCodes.keys()).map(nodeName =>
-        nodeNameToClassName(requirement.nodes.find(n => n.name === nodeName)!)
-      );
+      logger.debug('Node codes map', {
+        nodeCodesSize: nodeCodes.size,
+        nodeCodeKeys: Array.from(nodeCodes.keys()),
+      });
+      const nodeClassNames = Array.from(nodeCodes.keys()).map(nodeName => {
+        const node = requirement.nodes.find(n => n.name === nodeName);
+        logger.debug('Processing node for className', {
+          nodeName,
+          nodeNameType: typeof nodeName,
+          nodeFound: !!node,
+          node: node ? { name: node.name, nameType: typeof node.name } : null,
+        });
+        if (!node) {
+          throw new Error(`Node not found: ${nodeName}`);
+        }
+        return nodeNameToClassName(node);
+      });
+      logger.debug('Node class names generated', { nodeClassNames });
 
-      const graphCode = await this.graphGenerator.generate(
-        requirement,
-        stateInterfaceName,
-        nodeClassNames,
-        routeFunctionCode,
-        context
-      );
+      let graphCode: string;
+      try {
+        graphCode = await this.graphGenerator.generate(
+          requirement,
+          stateInterfaceName,
+          nodeClassNames,
+          routeFunctionCode,
+          context
+        );
+      } catch (genError) {
+        logger.error('Workflow graph generation failed with details', {
+          error: genError instanceof Error ? genError.message : String(genError),
+          stack: genError instanceof Error ? genError.stack : undefined,
+          requirementType: requirement.type,
+          stateInterfaceName,
+          nodeClassNames,
+          routeFunctionCodeType: typeof routeFunctionCode,
+        });
+        throw genError;
+      }
 
       // 5. 生成工厂类
       logger.info('Step 5/6: Generating factory class');
