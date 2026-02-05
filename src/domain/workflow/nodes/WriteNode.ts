@@ -43,8 +43,12 @@ const WRITE_PROMPT_PATH = 'content-creator/write.md';
 const REWRITE_PROMPT_PATH = 'content-creator/rewrite.md';
 
 const WRITE_OUTPUT_CONTRACT = `\n\n输出JSON格式（必须严格遵循）：\n` +
-  `{"articleContent":"Markdown文章内容（含占位符）","imagePrompts":["提示词1","提示词2"]}\n` +
-  `要求：纯JSON，不要包含任何其他文字或 Markdown 代码块标记`;
+  `{"articleContent":"Markdown文章内容（含占位符）","imagePrompts":["提示词1","提示词2"]}\n\n` +
+  `重要要求：\n` +
+  `1. 只输出纯 JSON 对象，不要使用代码块标记\n` +
+  `2. 不要在 JSON 前后添加任何其他文字\n` +
+  `3. 确保所有 JSON 字符串值中的引号都正确转义\n` +
+  `4. articleContent 值中包含的换行符应表示为 \\n 而不是实际换行`;
 
 /**
  * Write Node 实现

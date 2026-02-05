@@ -16,6 +16,7 @@ import type { BaseWorkflowState } from '../../domain/workflow/BaseWorkflowState.
 import { WorkflowRegistry } from '../../domain/workflow/WorkflowRegistry.js';
 import { contentCreatorWorkflowAdapter } from '../../domain/workflow/adapters/ContentCreatorWorkflowAdapter.js';
 import { translationWorkflowFactory } from '../../domain/workflow/examples/TranslationWorkflow.js';
+import { contentCreatorAgentWorkflow } from '../../domain/workflow/ContentCreatorAgentWorkflow.js';
 import type {
   ExecutorConfig,
   ExecutionResult,
@@ -54,6 +55,9 @@ export class SyncExecutor {
     }
     if (!WorkflowRegistry.has('translation')) {
       WorkflowRegistry.register(translationWorkflowFactory);
+    }
+    if (!WorkflowRegistry.has('content-creator-agent')) {
+      WorkflowRegistry.register(contentCreatorAgentWorkflow);
     }
 
     logger.info('SyncExecutor initialized', {
@@ -220,11 +224,14 @@ export class SyncExecutor {
   private async createTask(taskId: string, params: CreateTaskParams) {
     logger.debug('Creating task', { taskId });
 
+    // 确定工作流类型（从 params 中获取，默认为 content-creator）
+    const workflowType = params.type || 'content-creator';
+
     const task = await this.taskRepo.create({
       id: taskId,
       userId: params.userId,
       mode: params.mode,
-      type: 'content-creator', // 添加默认类型
+      type: workflowType, // 使用动态的工作流类型
       topic: params.topic,
       requirements: params.requirements,
       hardConstraints: params.hardConstraints,
@@ -258,7 +265,9 @@ export class SyncExecutor {
 
       // 使用 invoke 方法执行完整工作流
       logger.info('Invoking workflow graph', { taskId, workflowType });
-      const result = await graph.invoke(initialState);
+      const result = await graph.invoke(initialState, {
+        recursionLimit: 50, // 增加递归限制，给Agent更多时间完成任务
+      });
       logger.info('Workflow invocation completed', {
         taskId,
         workflowType,

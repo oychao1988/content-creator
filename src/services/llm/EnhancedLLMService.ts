@@ -12,7 +12,7 @@
 import axios, { AxiosError } from 'axios';
 import { config } from '../../config/index.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
-import type { ILLMService, ChatRequest, ChatResponse, ChatMessage } from './ILLMService.js';
+import type { ILLMService, ChatRequest, ChatResponse, ChatMessage, Tool, ToolCall } from './ILLMService.js';
 
 const logger = createLogger('LLM:Enhanced');
 
@@ -31,7 +31,15 @@ interface APIChatResponse {
     index: number;
     message: {
       role: string;
-      content: string;
+      content: string | null;
+      toolCalls?: Array<{
+        id: string;
+        type: string;
+        function: {
+          name: string;
+          arguments: string; // JSON 字符串
+        };
+      }>;
     };
     finishReason: string | null;
   }>;
@@ -129,8 +137,20 @@ export class EnhancedLLMService implements ILLMService {
       if (!choice) {
         throw new Error('No choice in response');
       }
-      const content = choice.message.content;
+
+      const content = choice.message.content || '';
       const usage = response.usage;
+
+      // 处理工具调用
+      let toolCalls;
+      if (choice.message.toolCalls && choice.message.toolCalls.length > 0) {
+        toolCalls = choice.message.toolCalls.map(tc => ({
+          id: tc.id,
+          name: tc.function.name,
+          arguments: JSON.parse(tc.function.arguments),
+        }));
+        logger.debug('Tool calls detected', { count: toolCalls.length });
+      }
 
       // 计算 Token 成本
       const cost = this.calculateCost(
@@ -160,6 +180,8 @@ export class EnhancedLLMService implements ILLMService {
         totalTokens: usage.totalTokens,
         cost,
         finishReason: choice.finishReason,
+        hasToolCalls: !!toolCalls,
+        toolCallsCount: toolCalls?.length || 0,
         duration: Date.now() - startTime,
         stream: request.stream || false,
       });
@@ -167,6 +189,7 @@ export class EnhancedLLMService implements ILLMService {
       // 返回统一的 ChatResponse 格式
       return {
         content,
+        toolCalls,
         usage: {
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
@@ -243,25 +266,60 @@ export class EnhancedLLMService implements ILLMService {
     }
 
     // 非流式请求
-    const response = await axios.post<APIChatResponse>(
-      `${this.baseURL}/chat/completions`,
-      {
+    try {
+      // 构建请求体
+      const requestBody: any = {
         model: request.model || this.modelName,
         messages: request.messages,
         max_tokens: maxTokens,
         temperature: temperature,
         stream: false,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: config.llm.timeout, // 使用配置的超时时间
-      }
-    );
+      };
 
-    return response.data;
+      // 添加工具定义（如果有）
+      if (request.tools && request.tools.length > 0) {
+        requestBody.tools = request.tools.map(tool => ({
+          type: 'function',
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.inputSchema,
+          },
+        }));
+        logger.debug('Tools included in request', { toolCount: request.tools.length });
+      }
+
+      const response = await axios.post<APIChatResponse>(
+        `${this.baseURL}/chat/completions`,
+        requestBody,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: config.llm.timeout, // 使用配置的超时时间
+        }
+      );
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        logger.error('LLM API request failed', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers,
+          message: error.message,
+          requestData: {
+            model: request.model || this.modelName,
+            messagesCount: request.messages.length,
+            maxTokens,
+            temperature,
+            stream: false,
+          },
+        });
+      }
+      throw error;
+    }
   }
 
   /**
