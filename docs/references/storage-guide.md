@@ -361,78 +361,156 @@ interface ImageGenerationResponse {
 | 质量检查记录 | ✅ | quality_checks 表已设计 |
 | Token 统计（设计） | ✅ | token_usage 表已创建 |
 
-### ⚠️ 部分实现
+### ✅ 已实现
 
 | 功能 | 状态 | 说明 |
 |------|------|------|
-| 结果持久化 | ⚠️ | 表结构已设计，但 saveResults() 为 TODO |
-| 图片本地存储 | ⚠️ | 当前只返回 URL，未下载到本地 |
-| 质量检查记录 | ⚠️ | 检查功能完整，但未写入数据库 |
+| 结果持久化 | ✅ | `SyncExecutor.saveResults()` 已完整实现 |
+| 图片本地存储 | ✅ | 支持下载并保存到本地 (`ImageService.downloadImage()`) |
+| 质量检查记录 | ✅ | 质检报告已写入数据库 |
 
-### ❌ 未实现
+### ⚠️ 可选增强
 
 | 功能 | 状态 | 优先级 |
 |------|------|--------|
-| 结果持久化实现 | ❌ | 高 |
-| 图片本地下载 | ❌ | 中 |
-| Token 使用记录 | ❌ | 中 |
-| 质量报告存储 | ❌ | 中 |
+| Token 使用记录 | ⚠️ | 低 - 非核心监控功能 |
 
 ---
 
 ## 🔍 SyncExecutor 的 saveResults() 方法
 
-### 当前代码（src/application/workflow/SyncExecutor.ts:226）
+### 实现代码（src/application/workflow/SyncExecutor.ts:284-395）
 
 ```typescript
 /**
  * 保存结果
  */
 private async saveResults(taskId: string, state: WorkflowState): Promise<void> {
-  logger.debug('Saving results', {
+  logger.info('Saving results', {
     taskId,
     hasArticle: !!state.articleContent,
-    hasImage: !!state.imageUrl
+    hasImage: !!state.images,
+    hasResultRepo: !!this.resultRepo,
+    hasQualityCheckRepo: !!this.qualityCheckRepo,
   });
 
-  // TODO: 创建Result记录
-  // TODO: 创建QualityCheck记录
-  // TODO: 更新TokenUsage记录
+  try {
+    // 保存文章结果
+    if (state.articleContent && this.resultRepo) {
+      await this.resultRepo.create({
+        taskId,
+        resultType: 'article',
+        content: state.articleContent,
+        metadata: {
+          wordCount: state.articleContent.length,
+          generatedAt: new Date().toISOString(),
+        },
+      });
+    }
 
-  logger.debug('Results saved', { taskId });
+    // 保存图片结果
+    if (state.images && state.images.length > 0 && this.resultRepo) {
+      await this.resultRepo.create({
+        taskId,
+        resultType: 'image',
+        content: JSON.stringify(state.images.map(img => ({
+          url: img.localPath || img.url,
+          prompt: img.prompt,
+          width: img.width,
+          height: img.height,
+        }))),
+        metadata: {
+          count: state.images.length,
+          generatedAt: new Date().toISOString(),
+        },
+      });
+    }
+
+    // 保存最终文章内容
+    if (state.finalArticleContent && this.resultRepo) {
+      await this.resultRepo.create({
+        taskId,
+        resultType: 'finalArticle',
+        content: state.finalArticleContent,
+        metadata: {
+          wordCount: state.finalArticleContent.length,
+          generatedAt: new Date().toISOString(),
+          hasImages: state.images && state.images.length > 0,
+          imageCount: state.images?.length || 0,
+        },
+      });
+    }
+
+    // 保存质量检查结果
+    if (state.textQualityReport && this.qualityCheckRepo) {
+      await this.qualityCheckRepo.create({
+        taskId,
+        checkType: 'text',
+        score: state.textQualityReport.score || 0,
+        passed: state.textQualityReport.passed,
+        hardConstraintsPassed: state.textQualityReport.hardConstraintsPassed || false,
+        details: state.textQualityReport.details || {},
+        fixSuggestions: state.textQualityReport.fixSuggestions || [],
+        rubricVersion: '1.0',
+        modelName: state.textQualityReport.modelName,
+      });
+    }
+
+    // 保存图片质量检查结果
+    if (state.imageQualityReport && this.qualityCheckRepo) {
+      await this.qualityCheckRepo.create({
+        taskId,
+        checkType: 'image',
+        score: state.imageQualityReport.score || 0,
+        passed: state.imageQualityReport.passed,
+        hardConstraintsPassed: state.imageQualityReport.hardConstraintsPassed || false,
+        details: state.imageQualityReport.details || {},
+        fixSuggestions: state.imageQualityReport.fixSuggestions || [],
+        rubricVersion: '1.0',
+        modelName: state.imageQualityReport.modelName,
+      });
+    }
+
+    logger.info('All results saved successfully', { taskId });
+  } catch (error) {
+    logger.error('Failed to save results', error as Error);
+  }
 }
 ```
 
-**状态**: ❌ **未实现**（所有都是 TODO）
+**状态**: ✅ **已完整实现**
+- ✅ 保存文章内容 (lines 295-307)
+- ✅ 保存图片结果 (lines 310-326)
+- ✅ 保存最终文章 (lines 329-347)
+- ✅ 保存文本质检报告 (lines 350-367)
+- ✅ 保存图片质检报告 (lines 370-387)
 
 ---
 
 ## 🎯 用户获取内容的方式
 
-### 方式一：CLI 直接返回（当前）
+### 方式一：CLI 直接返回（已实现）
 
 **流程**:
-1. 用户运行 `pnpm run cli:create --topic "xxx" --sync`
+1. 用户运行 `pnpm run cli create --topic "xxx" --sync`
 2. 系统执行工作流
 3. **CLI 直接显示**生成的内容和图片 URL
-4. 用户从终端复制或查看
+4. 结果同时保存到数据库 (通过 `saveResults()`)
 
 **优点**:
 - ✅ 即时获取
-- ✅ 无需查询数据库
+- ✅ 内容已持久化到数据库
+- ✅ 可通过 API 查询历史
 - ✅ 适合命令行使用
 
-**缺点**:
-- ❌ 内容不持久化
-- ❌ 刷新终端后内容丢失
-- ❌ 无法查询历史
+**实现状态**: ✅ 已完成
 
-### 方式二：数据库查询（待实现）
+### 方式二：数据库查询（已实现）
 
 **流程**:
 1. 用户创建任务
-2. 系统保存结果到 results 表
-3. 用户通过 API 或 CLI 查询历史
+2. 系统保存结果到 results 和 quality_checks 表
+3. 用户通过 CLI `pnpm run cli result --task-id <taskId>` 查询历史
 4. 系统返回持久化的内容
 
 **优点**:
@@ -441,122 +519,81 @@ private async saveResults(taskId: string, state: WorkflowState): Promise<void> {
 - ✅ 支持多用户
 - ✅ 适合 Web 应用
 
-**缺点**:
-- ❌ 需要额外实现
-- ❌ 增加存储成本
+**实现状态**: ✅ 已完成
 
 ---
 
-## 🚀 未来改进计划
+## 📋 可选增强功能
 
-### 优先级：高
+### Token 使用记录（低优先级）
 
-#### 1. 实现 saveResults() 方法
+**状态**: ⚠️ 可选功能，非核心需求
 
+**位置**: `src/domain/workflow/nodes/BaseNode.ts:200`
+
+**说明**:
+- 当前 Token 记录只在日志中输出
+- 可选功能：保存到 `token_usage` 表用于成本分析
+- 不影响核心功能正常运行
+
+**实现示例**（供参考）:
 ```typescript
-private async saveResults(taskId: string, state: WorkflowState): Promise<void> {
-  const resultsRepo = new PostgresResultRepository();
+// BaseNode.ts 中的 TODO 注释
+protected recordTokenUsage(
+  state: TState,
+  tokensIn: number,
+  tokensOut: number
+): void {
+  this.logger.debug('Token usage recorded', {
+    nodeId: this.name,
+    taskId: state.taskId,
+    tokensIn,
+    tokensOut,
+    totalTokens: tokensIn + tokensOut,
+  });
 
-  // 保存文章结果
-  if (state.articleContent) {
-    await resultsRepo.create({
-      taskId,
-      resultType: 'article',
-      content: state.articleContent,
-      metadata: {
-        wordCount: state.articleContent.length,
-        generatedAt: new Date().toISOString(),
-      },
-    });
-  }
-
-  // 保存图片结果
-  if (state.imageUrl) {
-    await resultsRepo.create({
-      taskId,
-      resultType: 'image',
-      content: state.imageUrl,  // URL
-      metadata: {
-        generatedAt: new Date().toISOString(),
-      },
-    });
-  }
+  // TODO: 保存到数据库（后续实现）
+  // await tokenUsageRepo.create({
+  //   taskId: state.taskId,
+  //   stepName: this.name,
+  //   tokensIn,
+  //   tokensOut,
+  //   totalTokens: tokensIn + tokensOut,
+  //   ...
+  // });
 }
 ```
 
-#### 2. 下载图片到本地
+**建议**:
+- 仅在有成本监控需求时实现
+- 可以通过日志分析获取近似数据
+- 使用 Sentry 或其他 APM 工具替代
 
-```typescript
-private async saveResults(taskId: string, state: WorkflowState): Promise<void> {
-  if (state.imageUrl) {
-    // 下载图片
-    const response = await axios.get(state.imageUrl, {
-      responseType: 'arraybuffer',
-    });
+---
 
-    // 保存到本地
-    const filename = `${taskId}_image.jpg`;
-    const filePath = path.join(
-      config.storage.path,
-      filename
-    );
-    fs.writeFileSync(filePath, response.data);
+## 🚀 未来改进建议
 
-    // 存储本地路径
-    await resultsRepo.create({
-      taskId,
-      resultType: 'image',
-      content: state.imageUrl,          // 保留云 URL
-      filePath,                      // 本地路径
-      metadata: { filename, fileSize: response.data.length },
-    });
-  }
-}
-```
+### 优先级：低（可选增强）
 
-### 优先级：中
+#### 1. Redis 缓存优化
 
-#### 3. 实现 Token 统计
+### 实现建议
 
-```typescript
-private async saveResults(taskId: string, state: WorkflowState): Promise<void> {
-  // 保存 Token 使用量
-  if (state.totalTokens && state.totalCost) {
-    await tokenUsageRepo.create({
-      taskId,
-      traceId: state.traceId,
-      stepName: 'total',
-      apiName: 'llm',
-      modelName: config.llm.modelName,
-      tokensIn: 0,
-      tokensOut: state.totalTokens,
-      totalTokens: state.totalTokens,
-      costPer1kTokensIn: 0,
-      costPer1kTokensOut: config.llm.costPer1kTokensOut || 0.0014,
-      totalCost: state.totalCost,
-    });
-  }
-}
-```
+**当前状态**: 内存缓存已完整实现，可正常工作
 
-#### 4. 实现 HTTP API 查询接口
+**优化方案**（可选）:
+- 实现 Redis 缓存以支持多实例部署
+- 在 `SearchNode.ts` 和 `QualityCheckCache.ts` 中填充 Redis 方法
+- 当前内存缓存适合单实例使用
 
-```typescript
-// GET /api/tasks/:taskId/results
-router.get('/tasks/:taskId/results', async (req, res) => {
-  const results = await resultsRepo.findByTaskId(req.params.taskId);
-  res.json(results);
-});
-```
+#### 2. Token 监控（可选）
 
-### 优先级：低
+**当前状态**: Token 使用记录在日志中
 
-#### 5. 添加 Web 前端
-
-- 提供友好的 Web 界面
-- 支持创建和查询任务
-- 显示历史记录
-- 下载生成的内容
+**实现建议**:
+- 仅在有成本监控需求时实现
+- 可通过日志分析获取近似数据
+- 考虑使用 Sentry 或其他 APM 工具
 
 ---
 
@@ -569,10 +606,10 @@ router.get('/tasks/:taskId/results', async (req, res) => {
                 当前存储与返回机制
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-内容存储:  ⚠️  表结构完整，但写入逻辑未实现
-图片存储:  ⚠️ 仅返回云端 URL，未本地持久化
-返回方式:  ✅ CLI 实时返回（用户可直接查看）
-历史查询:  ❌ 未实现
+内容存储:  ✅ 完整实现 (SyncExecutor.saveResults)
+图片存储:  ✅ 支持本地下载 (ImageService.downloadImage)
+返回方式:  ✅ CLI 实时返回 + 数据库持久化
+历史查询:  ✅ 已实现 (cli result --task-id <id>)
 ───────────────────────────────────────────────────────────────────
 ```
 
@@ -580,7 +617,7 @@ router.get('/tasks/:taskId/results', async (req, res) => {
 
 ```bash
 # 1. 创建任务（同步模式）
-pnpm run cli:create \
+pnpm run cli create \
   --topic "AI 技术发展" \
   --requirements "写一篇文章" \
   --sync
@@ -597,16 +634,20 @@ pnpm run cli:create \
 
 🖼️ 生成的配图:
 https://tos-cn-beijing.ivolces.com/xxxxx.jpg
+(已下载到: ./data/images/xxx.jpg)
 ────────────────────────────────────────
 
-# 4. 用户可以：
+# 4. 查询历史结果
+pnpm run cli result --task-id <task-id>
+
+# 5. 用户可以：
 #    - 复制文章内容
-#    - 访问图片 URL
-#    - 保存到文件
+#    - 访问图片 URL 或查看本地文件
+#    - 查询历史记录
 ```
 
 ---
 
-**文档版本**: 1.0
-**最后更新**: 2026-01-20
+**文档版本**: 2.0
+**最后更新**: 2026-02-05 (修正实施状态)
 **作者**: Content Creator Team
