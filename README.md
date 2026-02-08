@@ -17,7 +17,8 @@
 - ✅ 高可用：多 Worker 架构，自动故障恢复
 - ✅ 多工作流：支持内容创作和翻译工作流，可扩展
 - ✅ 插件化架构：通过 WorkflowRegistry 支持动态添加新工作流
-- ✅ AI 脚手架：用自然语言自动生成 LangGraph 工作流代码 🆕
+- ✅ AI 脚手架：用自然语言自动生成 LangGraph 工作流代码
+- ✅ Webhook 回调：任务完成时实时通知，支持重试和事件过滤 🆕
 
 ---
 
@@ -105,12 +106,21 @@ content-creator create --type translation \
 # 🆕 使用 AI 脚手架创建新工作流（自然语言描述）
 content-creator scaffold "创建一个文本摘要工作流"
 content-creator scaffold "实现多语言翻译工作流，支持质量检查" --yes
+
+# 🆕 使用 Webhook 回调功能
+content-creator create \
+  --topic "AI 技术" \
+  --requirements "写一篇关于 AI 技术的文章" \
+  --mode async \
+  --callback-url "http://your-server.com/api/callback" \
+  --callback-events "completed,failed"
 ```
 
 更多使用示例，请查看：
 - [工作流扩展架构设计](./docs/workflow-extension-design.md)
 - [翻译工作流使用指南](./docs/translation-workflow-guide.md)
 - [AI-Native 工作流脚手架使用指南](./docs/guides/workflow-scaffolding-guide.md) 🆕
+- [Webhook 回调使用指南](./docs/guides/webhook-guide.md) 🆕
 - [示例代码](./src/examples/)
 - [工作流示例](./examples/workflows/) 🆕
 
