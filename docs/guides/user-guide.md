@@ -1,7 +1,7 @@
 # Content Creator - 用户操作手册
 
-**项目版本**: 0.1.0
-**更新日期**: 2026-01-20
+**项目版本**: 0.2.0
+**更新日期**: 2026-02-08
 **适用对象**: 开发者、运维人员、用户
 
 ---
@@ -32,6 +32,7 @@ Content Creator 是一个基于 LLM 的智能内容创作系统，支持：
 - ✅ **任务队列管理** - BullMQ 异步任务处理
 - ✅ **完整监控体系** - Prometheus + Sentry
 - ✅ **缓存优化** - Redis 三层缓存策略
+- ✅ **Webhook 回调** - 任务完成时实时通知 🆕
 
 ### 技术栈
 
@@ -320,6 +321,8 @@ pnpm run cli create \
 | `--image-size` | 图片尺寸（如 1920x1080） | ❌ | 1920x1920 |
 | `--mode` | 执行模式 (sync\|async) | ❌ | sync |
 | `--sync` | 同步执行（等待结果） | ❌ | false |
+| `--callback-url` | Webhook 回调 URL 🆕 | ❌ | - |
+| `--callback-events` | 触发回调的事件（逗号分隔） 🆕 | ❌ | completed,failed |
 
 #### 示例
 
@@ -388,6 +391,102 @@ console.log('任务完成:', result);
 console.log('文章内容:', result.finalState.articleContent);
 console.log('配图 URL:', result.finalState.imageUrl);
 ```
+
+#### 配置 Webhook 回调 🆕
+
+**什么是 Webhook 回调？**
+
+Webhook 回调功能允许 Content Creator 在任务完成或失败时主动向外部系统发送 HTTP 通知，实现实时通知，无需轮询查询任务状态。
+
+**基本用法**：
+
+```bash
+# 使用 Webhook 回调
+pnpm run cli create \
+  --topic "AI 技术" \
+  --requirements "写一篇关于 AI 技术的文章" \
+  --mode async \
+  --callback-url "http://your-server.com/api/callback" \
+  --callback-events "completed,failed"
+```
+
+**参数说明**：
+
+- `--callback-url`: 接收回调的完整 URL
+- `--callback-events`: 触发回调的事件类型（逗号分隔），默认为 `completed,failed`
+
+**支持的事件类型**：
+
+- `submitted` - 任务提交到队列
+- `started` - 任务开始执行
+- `progress` - 任务进度更新
+- `completed` - 任务成功完成
+- `failed` - 任务失败
+- `cancelled` - 任务被取消
+
+**配置示例**：
+
+```bash
+# 仅监听成功完成事件
+pnpm run cli create \
+  --topic "AI 技术" \
+  --callback-url "http://your-server.com/callback" \
+  --callback-events "completed"
+
+# 监听多个事件
+pnpm run cli create \
+  --topic "AI 技术" \
+  --callback-url "http://your-server.com/callback" \
+  --callback-events "submitted,started,progress,completed,failed"
+```
+
+**环境变量配置**：
+
+在 `.env` 文件中可以配置全局 Webhook 设置：
+
+```bash
+# .env 文件
+CALLBACK_ENABLED=true                    # 是否启用回调
+CALLBACK_TIMEOUT=10                     # 回调超时（秒）
+CALLBACK_RETRY_COUNT=3                  # 失败重试次数
+CALLBACK_RETRY_DELAY=5                  # 重试延迟（秒）
+```
+
+**接收回调示例**：
+
+```javascript
+// Node.js (Express)
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+app.post('/api/callback', (req, res) => {
+  const { event, taskId, result, error } = req.body;
+
+  if (event === 'completed') {
+    console.log('✅ 任务成功完成');
+    console.log('任务 ID:', taskId);
+    console.log('内容质量:', result.qualityScore);
+    // 保存到数据库或发送通知
+  } else if (event === 'failed') {
+    console.error('❌ 任务失败');
+    console.error('错误信息:', error.message);
+    // 发送告警或记录错误
+  }
+
+  res.status(200).json({ success: true });
+});
+
+app.listen(3000, () => {
+  console.log('回调服务器运行在 http://localhost:3000');
+});
+```
+
+**详细文档**：
+
+- 📖 [Webhook 回调使用指南](./webhook-guide.md) - 完整的使用说明和最佳实践
+- 🔧 [Webhook 功能设计](../design/webhook-callback-feature.md) - 技术设计文档
 
 ---
 

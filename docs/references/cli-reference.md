@@ -1,7 +1,7 @@
 # Content Creator CLI 使用参考
 
-**版本**: 0.1.0
-**更新日期**: 2026-01-24
+**版本**: 0.2.0
+**更新日期**: 2026-02-08
 
 ---
 
@@ -76,6 +76,8 @@ pnpm run cli create [options]
 | `--max-words` | - | 最大字数 | ❌ | 2000 |
 | `--mode` | - | 执行模式 (sync\|async) | ❌ | sync |
 | `--priority` | - | 优先级 (low\|normal\|high\|urgent) | ❌ | normal |
+| `--callback-url` | - | Webhook 回调 URL | ❌ | - |
+| `--callback-events` | - | 触发回调的事件（逗号分隔） | ❌ | completed,failed |
 
 #### 执行模式说明
 
@@ -118,7 +120,124 @@ pnpm run cli create \
   --topic "云计算趋势" \
   --requirements "分析云计算的发展趋势" \
   --mode async
+
+# 使用 Webhook 回调
+pnpm run cli create \
+  --topic "AI 技术" \
+  --requirements "写一篇关于 AI 技术的文章" \
+  --mode async \
+  --callback-url "http://your-server.com/api/callback" \
+  --callback-events "completed,failed"
 ```
+
+#### Webhook 回调说明
+
+**什么是 Webhook 回调？**
+
+Webhook 回调功能允许 Content Creator 在任务完成或失败时主动向外部系统发送 HTTP 通知，无需轮询查询任务状态。
+
+**支持的参数**：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--callback-url` | 接收回调的完整 URL | - |
+| `--callback-events` | 触发回调的事件类型（逗号分隔） | completed,failed |
+
+**支持的事件类型**：
+
+- `submitted` - 任务提交到队列
+- `started` - 任务开始执行
+- `progress` - 任务进度更新
+- `completed` - 任务成功完成
+- `failed` - 任务失败
+- `cancelled` - 任务被取消
+
+**使用示例**：
+
+```bash
+# 基本用法（默认监听 completed 和 failed 事件）
+pnpm run cli create \
+  --topic "AI 技术" \
+  --requirements "写一篇文章" \
+  --callback-url "http://your-server.com/api/callback"
+
+# 仅监听成功完成事件
+pnpm run cli create \
+  --topic "AI 技术" \
+  --callback-url "http://your-server.com/callback" \
+  --callback-events "completed"
+
+# 监听多个事件
+pnpm run cli create \
+  --topic "AI 技术" \
+  --callback-url "http://your-server.com/callback" \
+  --callback-events "submitted,started,progress,completed,failed"
+```
+
+**环境变量配置**：
+
+可以通过 `.env` 文件配置全局 Webhook 设置：
+
+```bash
+# .env 文件
+CALLBACK_ENABLED=true                    # 是否启用回调
+CALLBACK_TIMEOUT=10                     # 回调超时（秒）
+CALLBACK_RETRY_COUNT=3                  # 失败重试次数
+CALLBACK_RETRY_DELAY=5                  # 重试延迟（秒）
+```
+
+**回调 Payload 格式**：
+
+```json
+{
+  "event": "completed",
+  "taskId": "uuid-xxxx-xxxx",
+  "workflowType": "content-creator",
+  "status": "completed",
+  "timestamp": "2026-02-08T12:00:00Z",
+  "metadata": {
+    "topic": "文章主题",
+    "requirements": "创作要求"
+  },
+  "result": {
+    "content": "文章内容...",
+    "qualityScore": 8.5,
+    "wordCount": 1500
+  }
+}
+```
+
+**接收回调示例**：
+
+```javascript
+// Node.js (Express)
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+app.post('/api/callback', (req, res) => {
+  const { event, taskId, result, error } = req.body;
+
+  if (event === 'completed') {
+    console.log('任务成功：', result.content);
+    // 处理成功回调
+  } else if (event === 'failed') {
+    console.error('任务失败：', error.message);
+    // 处理失败回调
+  }
+
+  res.status(200).json({ success: true });
+});
+
+app.listen(3000);
+```
+
+**详细文档**：
+
+- 📖 [Webhook 回调使用指南](../guides/webhook-guide.md) - 完整的使用说明
+- 🔧 [Webhook 功能设计](../design/webhook-callback-feature.md) - 技术设计文档
+- ✅ [集成测试报告](../test/webhook-callback-integration-test-report.md) - 测试报告
 
 ### status - 查询任务状态
 
