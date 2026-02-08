@@ -42,8 +42,11 @@ interface OrganizeNodeConfig {
 const ORGANIZE_PROMPT_PATH = 'content-creator/organize.md';
 
 const ORGANIZE_OUTPUT_CONTRACT = `\n\n输出JSON格式（必须严格遵循）：\n` +
-  `{"outline":"# 标题\\n\\n## 章节1\\n内容...","keyPoints":["关键点1","关键点2"],"summary":"摘要"}\n` +
-  `要求：纯JSON，不要包含任何其他文字或 Markdown 代码块标记`;
+  `{"outline":"# 标题\\n\\n## 章节1\\n内容...","keyPoints":["关键点1","关键点2"],"summary":"摘要"}\n\n` +
+  `重要要求：\n` +
+  `1. 只输出纯 JSON 对象，不要使用代码块标记\n` +
+  `2. 不要在 JSON 前后添加任何其他文字\n` +
+  `3. 确保所有 JSON 字符串值中的特殊字符都正确转义`;
 
 /**
  * Organize Node 实现

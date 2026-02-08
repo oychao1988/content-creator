@@ -12,7 +12,35 @@
  * Chat 消息
  */
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+  toolCallId?: string;      // 工具调用 ID（role='tool' 时使用）
+  toolCalls?: ToolCall[];   // 工具调用列表（role='assistant' 时使用）
+}
+
+/**
+ * 工具定义
+ */
+export interface Tool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, any>; // JSON Schema 格式的参数定义
+}
+
+/**
+ * 工具调用
+ */
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: Record<string, any>; // 工具参数
+}
+
+/**
+ * 工具响应
+ */
+export interface ToolResponse {
+  toolCallId: string;
   content: string;
 }
 
@@ -25,6 +53,7 @@ export interface ChatRequest {
   maxTokens?: number;
   temperature?: number;
   stream?: boolean;
+  tools?: Tool[];          // 可用工具列表
   taskId?: string;          // 任务 ID（用于 Token 记录）
   stepName?: string;         // 步骤名称（用于 Token 记录）
 }
@@ -34,6 +63,7 @@ export interface ChatRequest {
  */
 export interface ChatResponse {
   content: string;
+  toolCalls?: ToolCall[];   // 如果 LLM 调用了工具
   usage: {
     promptTokens: number;
     completionTokens: number;

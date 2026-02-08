@@ -142,6 +142,7 @@
     "@types/node": "^25.0.9",
     "@types/pg": "^8.16.0",
     "@types/uuid": "^11.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.2",
     "glob": "^13.0.0",
     "prettier": "^3.8.0",

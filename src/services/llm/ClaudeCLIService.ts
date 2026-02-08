@@ -9,6 +9,9 @@ import { spawn } from 'child_process';
 import type { ChildProcess } from 'child_process';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 import type { ILLMService, ChatMessage, ChatRequest, ChatResponse } from './ILLMService.js';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 const logger = createLogger('ClaudeCLI');
 
@@ -66,6 +69,7 @@ export class ClaudeCLIService implements ILLMService {
         model: request.model || this.config.defaultModel,
         messagesCount: request.messages.length,
         stream: request.stream || false,
+        hasTools: !!(request.tools && request.tools.length > 0),
       });
 
       // 构建 CLI 命令
@@ -78,6 +82,22 @@ export class ClaudeCLIService implements ILLMService {
       // 计算成本
       const cost = this.estimateCost(promptTokens, completionTokens);
 
+      // 尝试解析工具调用
+      let toolCalls = undefined;
+      let finalContent = content;
+
+      if (request.tools && request.tools.length > 0) {
+        const parsed = this.parseToolCallsFromContent(content, request.tools);
+        if (parsed && parsed.length > 0) {
+          toolCalls = parsed;
+          finalContent = `[调用工具: ${parsed.map(t => t.name).join(', ')}]`;
+          logger.debug('Tool calls parsed from content', {
+            count: parsed.length,
+            tools: parsed.map(t => t.name),
+          });
+        }
+      }
+
       const duration = Date.now() - startTime;
 
       logger.info('Claude CLI chat request completed', {
@@ -85,11 +105,14 @@ export class ClaudeCLIService implements ILLMService {
         completionTokens,
         totalTokens: promptTokens + completionTokens,
         cost,
+        hasToolCalls: !!toolCalls,
+        toolCallsCount: toolCalls?.length || 0,
         duration,
       });
 
       return {
-        content,
+        content: finalContent,
+        toolCalls,
         usage: {
           promptTokens,
           completionTokens,
@@ -107,11 +130,55 @@ export class ClaudeCLIService implements ILLMService {
   }
 
   /**
+   * 从内容中解析工具调用
+   */
+  private parseToolCallsFromContent(content: string, tools: any[]): any[] | undefined {
+    // 尝试提取 JSON 格式的工具调用
+    const jsonMatch = content.match(/```json\s*\n?([\s\S]*?)\n?```/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1]);
+
+        // 检查是否包含 tool 字段
+        if (parsed.tool && tools.some(t => t.name === parsed.tool)) {
+          return [{
+            id: `call_${Date.now()}`,
+            name: parsed.tool,
+            arguments: parsed.arguments || {},
+          }];
+        }
+      } catch {
+        // JSON 解析失败，继续尝试其他格式
+      }
+    }
+
+    // 尝试直接搜索 JSON 对象
+    const directJsonMatch = content.match(/\{[\s\S]*?"tool"[\s\S]*?\}/);
+    if (directJsonMatch) {
+      try {
+        const parsed = JSON.parse(directJsonMatch[0]);
+        if (parsed.tool && tools.some(t => t.name === parsed.tool)) {
+          return [{
+            id: `call_${Date.now()}`,
+            name: parsed.tool,
+            arguments: parsed.arguments || {},
+          }];
+        }
+      } catch {
+        // 忽略解析错误
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
    * 构建 CLI 命令
    */
   private buildCLICommand(request: ChatRequest): {
     command: string[];
     userPrompt: string;
+    systemPrompt?: string;
   } {
     const outputFormat = request.stream ? 'stream-json' : 'json';
     const cmd = ['claude', '-p', '--output-format', outputFormat];
@@ -124,10 +191,13 @@ export class ClaudeCLIService implements ILLMService {
     const model = request.model || this.config.defaultModel || 'sonnet';
     cmd.push('--model', model);
 
-    // 提取并添加 system 消息
-    const systemMessage = this.extractSystemMessage(request.messages);
-    if (systemMessage) {
-      cmd.push('--system-prompt', systemMessage);
+    // 提取 system 消息
+    let systemMessage = this.extractSystemMessage(request.messages);
+
+    // 如果有工具定义，将其添加到 system prompt 中
+    if (request.tools && request.tools.length > 0) {
+      systemMessage = this.enhanceSystemPromptWithTools(systemMessage, request.tools);
+      logger.debug('Tools added to system prompt', { toolCount: request.tools.length });
     }
 
     // TODO: 添加 MCP 配置支持
@@ -143,7 +213,66 @@ export class ClaudeCLIService implements ILLMService {
     // 构建用户提示（只包含 user 和 assistant 消息）
     const userPrompt = this.buildUserPrompt(request.messages);
 
-    return { command: cmd, userPrompt };
+    return { command: cmd, userPrompt, systemPrompt: systemMessage || undefined };
+  }
+
+  /**
+   * 增强 system prompt，添加工具定义
+   */
+  private enhanceSystemPromptWithTools(systemPrompt: string, tools: any[]): string {
+    if (!systemPrompt) {
+      systemPrompt = '你是一个专业的助手。';
+    }
+
+    const toolDefinitions = tools.map(tool => {
+      const schema = tool.inputSchema;
+      const params = this.formatToolParameters(schema);
+      return `
+**工具: ${tool.name}**
+- 描述: ${tool.description}
+- 参数: ${params}
+`;
+    }).join('\n');
+
+    return `${systemPrompt}
+
+## 可用工具
+
+你有以下工具可以使用。当需要使用工具时，请严格按照以下 JSON 格式返回：
+
+\`\`\`json
+{
+  "tool": "工具名称",
+  "arguments": {
+    "参数名": "参数值"
+  }
+}
+\`\`\`
+
+${toolDefinitions}
+
+重要：
+1. 当用户请求需要使用工具时，你必须调用工具，而不是直接回答
+2. 工具调用必须严格按照上述 JSON 格式
+3. 每次只能调用一个工具
+4. 工具调用的 JSON 必须在回复的开头，然后可以添加解释
+`;
+  }
+
+  /**
+   * 格式化工具参数描述
+   */
+  private formatToolParameters(schema: any): string {
+    if (!schema || !schema.properties) {
+      return '无';
+    }
+
+    const params = Object.entries(schema.properties || {}).map(([name, info]: [string, any]) => {
+      const required = schema.required?.includes(name) ? ' (必需)' : ' (可选)';
+      return `- ${name}${required}: ${info.description || '无描述'}`;
+    });
+
+    return params.length > 0 ? params.join('\n  ') : '无';
   }
 
   private extractTopLevelJSONObjects(input: string): { objects: unknown[]; rest: string } {
@@ -262,10 +391,44 @@ export class ClaudeCLIService implements ILLMService {
       let stdoutText = '';
       let streamBuffer = '';
 
-      // 启动子进程
-      const args = command.slice(1) as string[];
-      const proc: ChildProcess = spawn(command[0], args, {
-        stdio: ['pipe', 'pipe', 'pipe'],
+      // 构建命令参数
+      const { command: cmd, userPrompt, systemPrompt } = this.buildCLICommand(request);
+
+      // 转义用户提示中的特殊字符
+      const escapedPrompt = userPrompt
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\$/g, '\\$')
+        .replace(/`/g, '\\`')
+        .replace(/\n/g, '\\n');
+
+      let fullCommand: string;
+      let tempFile: string | null = null;
+
+      if (systemPrompt) {
+        // 使用临时文件传递 system prompt，避免 shell 转义问题
+
+        // 创建临时文件
+        const tempDir = os.tmpdir();
+        tempFile = path.join(tempDir, `claude-system-prompt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.txt`);
+        fs.writeFileSync(tempFile, systemPrompt, 'utf8');
+
+        logger.debug('Created temporary system prompt file', { tempFile });
+
+        // 构建带 system prompt 文件的命令
+        // 注意：Claude CLI 可能不支持 --system-prompt-file，所以我们需要用 cat 读取文件
+        fullCommand = `echo "${escapedPrompt}" | ${cmd.join(' ')} --system-prompt "$(cat '${tempFile}')"`;
+      } else {
+        // 没有 system prompt 时的简单命令
+        fullCommand = `echo "${escapedPrompt}" | ${cmd.join(' ')}`;
+      }
+
+      logger.debug('Executing command', { command: fullCommand.substring(0, 200) });
+
+      // 使用 shell 执行命令
+      const proc: ChildProcess = spawn('sh', ['-c', fullCommand], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env },
       });
 
       // 设置超时
@@ -273,6 +436,7 @@ export class ClaudeCLIService implements ILLMService {
         if (proc.pid) {
           proc.kill('SIGTERM');
         }
+        cleanupTempFile(); // 超时时也要清理临时文件
         reject(new Error(`Claude CLI request timeout after ${timeout}ms`));
       }, timeout);
 
@@ -292,14 +456,6 @@ export class ClaudeCLIService implements ILLMService {
           completionTokens,
         });
       };
-
-      // 将用户提示词写入 stdin
-      if (proc.stdin) {
-        const userPrompt = this.buildUserPrompt(request.messages);
-        // 添加换行符确保 CLI 识别输入结束
-        proc.stdin.write(userPrompt + '\n');
-        proc.stdin.end();
-      }
 
       // 处理标准输出
       if (proc.stdout) {
@@ -340,11 +496,29 @@ export class ClaudeCLIService implements ILLMService {
         });
       }
 
+      // 清理临时文件的辅助函数
+      const cleanupTempFile = () => {
+        if (tempFile) {
+          try {
+            if (fs.existsSync(tempFile)) {
+              fs.unlinkSync(tempFile);
+              logger.debug('Cleaned up temporary system prompt file', { tempFile });
+            }
+          } catch (error) {
+            logger.warn('Failed to clean up temporary file', {
+              error: error instanceof Error ? error.message : String(error),
+              tempFile,
+            });
+          }
+        }
+      };
+
       // 处理进程退出
       proc.on('close', (code: number | null) => {
         if (finished) return;
 
         clearTimeout(timer);
+        cleanupTempFile(); // 清理临时文件
 
         if (!isStream) {
           try {
@@ -386,6 +560,7 @@ export class ClaudeCLIService implements ILLMService {
       proc.on('error', (error: Error) => {
         if (finished) return;
         clearTimeout(timer);
+        cleanupTempFile(); // 错误时也要清理临时文件
         reject(new Error(`Failed to start Claude CLI: ${error.message}`));
       });
     });

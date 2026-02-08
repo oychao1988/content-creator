@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Webhook Callback Feature** 🆕
+  - Implement HTTP webhook callback service for real-time task notifications
+  - Support event filtering (completed, failed, submitted, started, progress, cancelled)
+  - Implement retry mechanism (default 3 retries with 5-second intervals)
+  - Add timeout control (default 10 seconds)
+  - Add asynchronous queue processing (non-blocking task execution)
+  - Support CLI parameters: `--callback-url`, `--callback-events`
+  - Add environment variables: `CALLBACK_ENABLED`, `CALLBACK_TIMEOUT`, `CALLBACK_RETRY_COUNT`, `CALLBACK_RETRY_DELAY`
+  - Integrate webhook service into SyncExecutor for automatic notifications
+  - Create comprehensive integration tests (9 test scenarios, 100% pass rate)
+  - Achieve 80.85% code coverage for WebhookService
+  - Add Webhook usage guide with examples in Node.js, Python, and Go
+
+### Changed
+- Update `WorkflowParams` interface to include webhook parameters (callbackUrl, callbackEnabled, callbackEvents)
+- Update CLI create command to support webhook parameters
+- Update README.md with webhook callback feature description
+
+### Documentation
+- Add `docs/guides/webhook-guide.md` - comprehensive webhook usage guide
+- Add `docs/design/webhook-callback-feature.md` - webhook design specification
+- Add `docs/design/webhook-implementation-plan.md` - webhook implementation plan
+- Add `test-results/webhook-integration-test-report.md` - integration test report
+
 ## [0.2.0] - 2026-01-28
 
 ### Added

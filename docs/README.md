@@ -1,7 +1,7 @@
 # Content Creator 文档导航
 
-> **文档系统版本**: 2.4
-> **最后更新**: 2026-02-05 (修正 TODO 状态评估)
+> **文档系统版本**: 2.5
+> **最后更新**: 2026-02-08 (添加 Webhook 回调功能)
 > **维护者**: Content Creator Team
 
 欢迎来到 Content Creator 项目文档中心！本文档采用**分类管理 + 状态跟踪 + 生命周期管理**体系。
@@ -21,6 +21,7 @@
 
 ### 使用指南
 - [🤖 AI 工作流脚手架指南](./guides/workflow-scaffolding-guide.md) - AI-Native 工作流脚手架使用指南 **NEW**
+- [🔔 Webhook 回调使用指南](./guides/webhook-guide.md) - Webhook 回调功能使用说明 **NEW**
 - [🤖 ReAct Agent 工作流指南](./guides/content-creator-agent-guide.md) - Agent 内容创作使用说明
 - [🌐 翻译工作流指南](./guides/translation-workflow-guide.md) - 翻译工作流使用说明
 - [📋 工作流适配器使用](./guides/workflow-adapter-usage.md) - 工作流适配器教程
@@ -48,6 +49,7 @@
 
 | 文档 | 状态 | 实施时间 | 描述 |
 |------|------|----------|------|
+| [webhook-callback-feature.md](./design/webhook-callback-feature.md) | ✅ 已实施 | 2026-02-08 | **Webhook 回调功能**（全部 5 阶段完成） |
 | [workflow-scaffolding-design.md](./design/workflow-scaffolding-design.md) | ✅ 已实施 | 2026-02-04 | AI-Native 工作流脚手架（全部 6 阶段完成） |
 | [workflow-scaffolding-example.ts](./design/workflow-scaffolding-example.ts) | ❌ 示例代码 | - | 脚手架代码示例 |
 | [agent-performance-evaluation-design.md](./design/agent-performance-evaluation-design.md) | ❌ 待实施 | - | Agent 性能评估系统 |
@@ -58,6 +60,26 @@
 > 💡 **提示**: ✅ = 已实施 | ❌ = 待实施 | 🔄 = 进行中
 
 ### 已实施功能详情
+
+**Webhook 回调功能** (2026-02-08)
+- 实现文件:
+  - `src/infrastructure/callback/WebhookService.ts` - Webhook 服务核心（263 行）
+  - `src/application/workflow/SyncExecutor.ts` - 集成回调通知
+  - `src/domain/workflow/WorkflowParams.ts` - 添加 webhook 参数
+  - `src/presentation/cli/commands/create.ts` - CLI 参数支持
+- 功能: HTTP Webhook 回调，任务完成/失败时实时通知
+- 核心特性:
+  - 实时通知（<2 秒延迟）
+  - 事件过滤（6 种事件类型：completed, failed, submitted, started, progress, cancelled）
+  - 异步队列处理（不阻塞任务执行）
+  - 重试机制（默认 3 次，每次 5 秒间隔）
+  - 超时控制（默认 10 秒）
+  - CLI 参数支持（`--callback-url`, `--callback-events`）
+  - 环境变量配置
+- 测试: 25 个单元测试（95.74% 覆盖率）+ 9 个集成测试（100% 通过，80.85% 覆盖率）
+- 使用: `content-creator create --topic "AI" --callback-url "http://your-server.com/callback" --callback-events "completed,failed"`
+- 指南: [使用指南](./guides/webhook-guide.md) | [测试报告](./test/webhook-callback-integration-test-report.md)
+- 报告: [完成总结](./reports/webhook-callback-COMPLETION-SUMMARY.md) | [实施计划](./development/webhook-callback-PLAN.md)
 
 **AI-Native 工作流脚手架** (2026-02-04)
 - 实现文件: `src/presentation/cli/scaffolding/` - 53 个核心实现文件

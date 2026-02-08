@@ -132,6 +132,10 @@ export interface CreateTaskParams {
     keywords?: string[];
   };
   idempotencyKey?: string;       // 幂等键（可选）
+  // Webhook 回调参数
+  callbackUrl?: string;          // 回调 URL
+  callbackEnabled?: boolean;     // 是否启用回调
+  callbackEvents?: string[];     // 触发回调的事件列表
 }
 
 /**

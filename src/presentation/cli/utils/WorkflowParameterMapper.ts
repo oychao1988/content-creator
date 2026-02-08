@@ -82,6 +82,7 @@ export class WorkflowParameterMapper {
     const params: any = {
       taskId: cliOptions.taskId || `task-${Date.now()}`,
       mode: cliOptions.mode || 'sync',
+      type: workflowType, // 添加工作流类型字段
     };
     const errors: string[] = [];
 

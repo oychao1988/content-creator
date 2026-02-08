@@ -12,6 +12,8 @@
  */
 
 import { createReactAgent } from '@langchain/langgraph/prebuilt';
+import { AIMessage } from '@langchain/core/messages';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type {
   WorkflowFactory,
   WorkflowGraph,
@@ -30,17 +32,16 @@ const logger = createLogger('ContentCreatorAgent');
  * Agent 状态定义
  *
  * 扩展 BaseWorkflowState，添加 Agent 特有的字段
+ *
+ * 注意：LangGraph 的 ReAct Agent 期望状态中有 `messages` 字段
  */
 export interface AgentState extends BaseWorkflowState {
   // ========== 输入参数 ==========
   topic: string;                          // 主题
   requirements: string;                   // 要求
 
-  // ========== Agent 交互 ==========
-  agentMessages: Array<{                  // Agent 对话历史
-    role: string;                         // 角色（user/assistant/system）
-    content: string;                      // 内容
-  }>;
+  // ========== Agent 消息（必须使用 messages 字段名）==========
+  messages: Array<any>;                   // LangChain 消息数组（Agent 会自动管理）
 
   // ========== 中间结果 ==========
   searchResults?: any;                    // 搜索结果
@@ -51,39 +52,6 @@ export interface AgentState extends BaseWorkflowState {
   targetAudience?: string;                // 目标受众（可选）
   tone?: string;                          // 语气（可选）
   imageSize?: string;                     // 图片尺寸（可选）
-}
-
-/**
- * LangChain 兼容的 LLM 接口
- *
- * 适配器模式：将现有的 ILLMService 包装为 LangChain 期望的接口
- */
-interface LangChainCompatibleLLM {
-  /**
-   * 调用 LLM（LangChain 标准接口）
-   */
-  invoke(messages: any[]): Promise<{
-    content: string;
-    usage?: {
-      promptTokens: number;
-      completionTokens: number;
-      totalTokens: number;
-    };
-  }>;
-
-  /**
-   * 绑定工具（LangChain 标准接口）
-   *
-   * 注：当前实现不需要真正绑定工具，因为工具是通过 createReactAgent 单独传入的
-   */
-  bind(tools: any[]): LangChainCompatibleLLM;
-
-  /**
-   * 流式调用（可选，用于流式响应）
-   */
-  stream?(messages: any[]): AsyncIterable<{
-    content: string;
-  }>;
 }
 
 /**
@@ -117,7 +85,7 @@ export class ContentCreatorAgentWorkflow implements WorkflowFactory<AgentState> 
       const llm = this.createLangChainCompatibleLLM();
 
       // 定义工具集
-      const tools = [searchTool, writeTool, generateImageTool];
+      const tools = [searchTool, writeTool];
 
       logger.debug('Agent tools configured', {
         toolCount: tools.length,
@@ -127,24 +95,52 @@ export class ContentCreatorAgentWorkflow implements WorkflowFactory<AgentState> 
       // System Prompt - 定义 Agent 的角色和行为
       const systemPrompt = `你是一个专业的内容创作助手。你的任务是根据用户需求创建高质量的内容。
 
+【核心原则】
+1. **限制搜索次数**：最多进行2-3次搜索，搜索后立即调用write_content
+2. **必须调用工具**：严禁直接输出文本，所有操作必须通过工具完成
+3. **搜索→写作流程**：搜索后必须调用write_content，没有其他选择
+
 可用工具：
-1. search_content - 搜索网络信息，收集背景资料和参考内容
-2. write_content - 基于主题和要求撰写文章内容，支持 Markdown 格式
-3. generate_images - 根据描述生成配图
+1. search_content - 搜索网络信息
+   参数：query（搜索关键词）
+   限制：最多使用2-3次
 
-工作流程建议：
-1. 首先使用 search_content 搜索相关信息，收集可靠的参考资料
-2. 然后使用 write_content 基于搜索结果撰写文章，确保内容准确、有深度
-3. 最后使用 generate_images 生成与文章内容相关的配图
+2. write_content - 撰写文章内容（这是完成任务的唯一方式）
+   必需参数：
+   * topic：文章主题（从用户输入获取）
+   * requirements：写作要求（从用户输入获取）
+   可选参数：
+   * context：搜索结果摘要（如果进行了搜索）
 
-注意事项：
-- 确保引用可靠来源
-- 保持内容逻辑清晰
-- 生成高质量的配图描述
-- 以 Markdown 格式输出文章内容
-- 包含适当的标题结构和段落组织
+【执行流程】
+第1步：进行1-3次搜索（每次搜索不同角度的信息）
+第2步：**立即**调用write_content工具，传递以下参数：
+  - topic: 用户提供的主题
+  - requirements: 用户提供的写作要求
+  - context: 简要总结搜索结果（可选，但建议提供）
+第3步：任务完成
 
-请始终以专业、准确的方式完成任务。`;
+【重要示例】
+用户输入：主题="TypeScript"，要求="写一篇800字介绍"
+
+正确的执行序列：
+1. {"tool":"search_content","arguments":{"query":"TypeScript 类型系统"}}
+2. {"tool":"search_content","arguments":{"query":"TypeScript 优势特点"}}
+3. {"tool":"write_content","arguments":{"topic":"TypeScript","requirements":"写一篇800字介绍","context":"TypeScript是微软开发的...（搜索结果摘要）"}}
+
+错误的执行：
+❌ 搜索5次以上
+❌ 搜索后不调用write_content
+❌ 直接输出文章文本而不调用工具
+❌ 说"我已收集足够信息，现在开始写作"（应该直接调用工具）
+
+【关键点】
+- 搜索2-3次后，立即停止搜索并调用write_content
+- 不要担心context参数太简单，简单的总结即可
+- write_content是完成任务的唯一途径
+- 任何直接输出文本的行为都是错误的
+
+现在开始执行任务！记住：搜索2-3次后必须调用write_content。`;
 
       // 创建 ReAct Agent
       // createReactAgent 会自动处理工具调用、推理循环等
@@ -171,70 +167,279 @@ export class ContentCreatorAgentWorkflow implements WorkflowFactory<AgentState> 
    *
    * 核心设计：
    * - 使用现有的 LLMServiceFactory 获取 LLM 服务
-   * - 将 ILLMService 接口适配为 LangChain 期望的接口
+   * - 将 ILLMService 接口适配为 LangChain 期望的 BaseChatModel 接口
    * - 保持与现有架构的完全兼容
    *
    * @returns LangChain 兼容的 LLM 对象
    */
-  private createLangChainCompatibleLLM(): LangChainCompatibleLLM {
+  private createLangChainCompatibleLLM(): BaseChatModel {
     logger.debug('Creating LangChain-compatible LLM adapter');
 
     // 获取现有的 LLM 服务实例
     const llmService = LLMServiceFactory.create();
 
-    // 创建适配器
-    const adapter: LangChainCompatibleLLM = {
+    // 创建自定义 LLM 适配器类，继承 BaseChatModel
+    class CustomLLMAdapter extends BaseChatModel {
+      private llmService: any;
+      private tools: any[] = [];
+      private toolDescriptions: string = '';
+
+      constructor(fields: { llmService: any }) {
+        super(fields);
+        this.llmService = fields.llmService;
+      }
+
       /**
-       * invoke 方法 - LangChain 标准调用接口
+       * _generate 方法 - BaseChatModel 要求实现的方法
        *
        * 将 LangChain 的消息格式转换为 ILLMService 的格式
+       * 并处理工具调用
        */
-      invoke: async (messages: any[]) => {
-        logger.debug('LLM adapter: invoke called', {
+      async _generate(messages: any[], options?: any) {
+        logger.debug('CustomLLMAdapter._generate called', {
           messageCount: messages.length,
+          hasTools: this.tools.length > 0,
+          messages: messages.map((m: any) => ({
+            type: m._getType?.() || typeof m,
+            content: m.content?.substring(0, 100) || '(no content)',
+            constructor: m.constructor?.name,
+          })),
         });
 
         try {
           // 转换消息格式
-          // LangChain 格式 -> ILLMService 格式
-          const chatMessages = messages.map((m: any) => ({
-            role: m.role as 'system' | 'user' | 'assistant',
-            content: m.content as string,
-          }));
+          let chatMessages = messages.map((m: any) => {
+            const messageType = m._getType();
+            const validRoles = ['system', 'user', 'assistant', 'tool'];
+            const role = validRoles.includes(messageType) ? messageType : 'user';
 
-          // 调用现有的 LLM 服务
-          const result = await llmService.chat({
-            messages: chatMessages,
-            stream: false, // Agent 模式下使用非流式
+            // 对于 AIMessage，检查是否有工具调用
+            if (messageType === 'assistant') {
+              // tool_calls 可能在 m.tool_calls 或 m.additional_kwargs.tool_calls 中
+              const toolCalls = m.tool_calls || m.additional_kwargs?.tool_calls;
+
+              // 如果content为空或只是"(no content)"，添加占位符
+              let content = m.content;
+              if ((!content || content.trim().length === 0 || content === '(no content)')) {
+                if (toolCalls && toolCalls.length > 0) {
+                  content = `[调用工具: ${toolCalls.map((tc: any) => tc.name || tc.function?.name || 'unknown').join(', ')}]`;
+                } else {
+                  content = '[已处理]';
+                }
+              }
+
+              const result: any = {
+                role,
+                content,
+              };
+
+              // 保留工具调用信息
+              if (toolCalls && toolCalls.length > 0) {
+                result.toolCalls = toolCalls;
+              }
+
+              return result;
+            }
+
+            return {
+              role,
+              content: m.content as string,
+            };
+          }).filter(msg => {
+            // 保留有内容的消息，或者是有工具调用的 AIMessage
+            if (msg.toolCalls && msg.toolCalls.length > 0) {
+              return true;  // 保留有工具调用的消息
+            }
+            return msg.content && msg.content.trim().length > 0;
           });
+
+          // 如果有工具，增强 system prompt
+          if (this.tools.length > 0 && chatMessages.length > 0 && chatMessages[0].role === 'system') {
+            chatMessages[0].content = this.enhanceSystemPrompt(chatMessages[0].content);
+          }
+
+          logger.debug('CustomLLMAdapter converted messages', {
+            originalCount: messages.length,
+            filteredCount: chatMessages.length,
+            assistantCount: chatMessages.filter(m => m.role === 'assistant').length,
+            toolCount: chatMessages.filter(m => m.role === 'tool').length,
+            chatMessages: chatMessages.map((m: any) => ({
+              role: m.role,
+              contentLength: m.content?.length || 0,
+              hasToolCalls: !!(m.toolCalls && m.toolCalls.length > 0),
+            })),
+          });
+
+          // 调用 LLM 服务
+          const result = await this.llmService.chat({
+            messages: chatMessages,
+            stream: false,
+            tools: this.tools.length > 0 ? this.convertToolsToAPIFormat() : undefined,
+          });
+
+          // 解析工具调用
+          let toolCalls = undefined;
+          let content = result.content;
+
+          // 优先使用 DeepSeek 返回的工具调用
+          if (result.toolCalls && result.toolCalls.length > 0) {
+            toolCalls = result.toolCalls.map((tc: any) => ({
+              id: tc.id,
+              name: tc.name,
+              args: tc.arguments,
+            }));
+            content = ''; // 工具调用时不返回文本内容
+            logger.debug('Tool calls from API', {
+              count: toolCalls.length,
+              tools: toolCalls.map((t: any) => t.name),
+            });
+          } else if (this.tools.length > 0) {
+            // 如果 API 没有返回工具调用，尝试从文本中解析
+            const parsed = this.parseToolCalls(result.content);
+            if (parsed && parsed.length > 0) {
+              toolCalls = parsed;
+              content = '';
+              logger.debug('Tool calls parsed from text', {
+                count: parsed.length,
+                tools: parsed.map(t => t.name),
+              });
+            }
+          }
 
           // 返回 LangChain 期望的格式
           return {
-            content: result.content,
-            usage: {
-              promptTokens: result.usage.promptTokens,
-              completionTokens: result.usage.completionTokens,
-              totalTokens: result.usage.totalTokens,
+            generations: [{
+              message: new AIMessage({
+                content,
+                name: 'content-creator-agent',
+                usage_metadata: {
+                  input_tokens: result.usage.promptTokens,
+                  output_tokens: result.usage.completionTokens,
+                  total_tokens: result.usage.totalTokens,
+                },
+                response_metadata: {
+                  cost: result.cost,
+                },
+                additional_kwargs: toolCalls ? {
+                  tool_calls: toolCalls,
+                } : {},
+                tool_calls: toolCalls || [],
+              }),
+            }],
+            llmOutput: {
+              cost: result.cost,
             },
           };
         } catch (error) {
-          logger.error('LLM adapter: invoke failed', error as Error);
+          logger.error('CustomLLMAdapter._generate failed', error as Error);
           throw error;
         }
-      },
+      }
 
       /**
-       * bind 方法 - LangChain 工具绑定接口
-       *
-       * 注：在 createReactAgent 模式下，工具是单独传入的
-       * 因此这个方法只需要返回适配器本身
+       * 增强 system prompt，添加工具描述
        */
-      bind: (tools: any[]) => {
-        logger.debug('LLM adapter: bind called', { toolCount: tools.length });
-        // 返回适配器本身，不需要实际绑定工具
-        return adapter;
-      },
-    };
+      private enhanceSystemPrompt(originalPrompt: string): string {
+        if (this.tools.length === 0) return originalPrompt;
+
+        const toolDesc = this.toolDescriptions || this.buildToolDescriptions();
+        return `${originalPrompt}
+
+${toolDesc}
+
+重要：当你需要使用工具时，请直接调用工具。不要输出 "我需要搜索" 或 "让我写一篇文章" 这样的描述，而是直接使用工具。`;
+      }
+
+      /**
+       * 构建工具描述
+       */
+      private buildToolDescriptions(): string {
+        this.toolDescriptions = this.tools.map((tool: any) => {
+          const schema = tool.schema;
+          const desc = schema?._rawSchema?.description || tool.description || '';
+          return `- ${tool.name}: ${desc}`;
+        }).join('\n');
+        return this.toolDescriptions;
+      }
+
+      /**
+       * 转换工具为 API 格式
+       */
+      private convertToolsToAPIFormat() {
+        return this.tools.map((tool: any) => {
+          const schema = tool.schema;
+          return {
+            name: tool.name,
+            description: tool.description || schema?._rawSchema?.description || '',
+            inputSchema: schema?._rawSchema || schema,
+          };
+        });
+      }
+
+      /**
+       * 从响应中解析工具调用
+       * 支持多种格式：
+       * 1. DeepSeek/OpenAI 的原生工具调用（通过 result.toolCalls）
+       * 2. 文本格式的工具调用描述
+       */
+      private parseToolCalls(content: string): any[] | undefined {
+        // 如果响应中已经包含工具调用（DeepSeek 返回的）
+        // 这里我们无法直接访问，因为已经解构了
+        // 所以我们依赖文本解析作为后备方案
+
+        // 尝试解析 JSON 格式的工具调用
+        const toolCallPatterns = [
+          // 模式 1: JSON 格式
+          /```json\s*\n([\s\S]*?)\n```/g,
+          // 模式 2: 工具调用描述
+          /(?:调用|使用|调用工具)[：:]\s*(\w+)/gi,
+        ];
+
+        // 尝试提取 JSON
+        const jsonMatch = /\{[\s\S]*"name"[\s\S]*\}/.exec(content);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.name && this.tools.some((t: any) => t.name === parsed.name)) {
+              return [{
+                id: `call_${Date.now()}`,
+                name: parsed.name,
+                args: parsed.arguments || parsed.parameters || parsed.args || {},
+              }];
+            }
+          } catch {
+            // JSON 解析失败，继续尝试其他模式
+          }
+        }
+
+        return undefined;
+      }
+
+      /**
+       * 返回 LLM 类型标识符
+       */
+      _llmType() {
+        return 'content-creator-agent-llm';
+      }
+
+      /**
+       * 绑定工具（LangGraph 需要的方法）
+       *
+       * 保存工具定义供后续使用
+       */
+      bindTools(tools: any[]) {
+        logger.debug('CustomLLMAdapter: bindTools called', {
+          toolCount: tools.length,
+          toolNames: tools.map((t: any) => t.name),
+        });
+        this.tools = tools;
+        this.buildToolDescriptions();
+        return this;
+      }
+    }
+
+    // 创建并返回适配器实例
+    const adapter = new CustomLLMAdapter({ llmService });
 
     logger.debug('LangChain-compatible LLM adapter created');
     return adapter;
@@ -277,8 +482,10 @@ export class ContentCreatorAgentWorkflow implements WorkflowFactory<AgentState> 
           tone: (params as any).tone,
           imageSize: (params as any).imageSize,
 
-          // 初始化 Agent 对话历史
-          agentMessages: [
+          // 初始化 Agent 消息数组
+          // LangGraph 的 Agent 会自动管理这个数组
+          messages: [
+            // 用户消息 - 包含任务要求
             {
               role: 'user',
               content: this.buildUserPrompt(params as any),
@@ -325,7 +532,10 @@ export class ContentCreatorAgentWorkflow implements WorkflowFactory<AgentState> 
       parts.push(`语气风格：${params.tone}`);
     }
 
-    parts.push('\n请使用可用工具完成这个内容创作任务。');
+    parts.push('\n【重要】你必须按照以下步骤完成任务：');
+    parts.push('1. 先调用 search_content 工具搜索1-2次');
+    parts.push('2. 然后必须调用 write_content 工具生成文章');
+    parts.push('3. 不要直接输出文本，只调用工具即可');
 
     return parts.join('\n');
   }
