@@ -22,6 +22,8 @@ import type {
   ExecutionResult,
   ProgressCallback,
 } from './types.js';
+import { WebhookService } from '../../infrastructure/callback/WebhookService.js';
+import type { CallbackPayload } from '../../infrastructure/callback/WebhookService.js';
 
 const logger = createLogger('SyncExecutor');
 
@@ -34,6 +36,7 @@ export class SyncExecutor {
   private qualityCheckRepo?: IQualityCheckRepository;
   private config: Required<ExecutorConfig>;
   private progressCallbacks: Map<string, ProgressCallback[]> = new Map();
+  private webhookService: WebhookService;
 
   constructor(
     taskRepo: ITaskRepository,
@@ -48,6 +51,9 @@ export class SyncExecutor {
       enableLogging: config.enableLogging ?? true,
       logLevel: config.logLevel || 'info',
     };
+
+    // 初始化 Webhook 服务
+    this.webhookService = new WebhookService();
 
     // 注册工作流（如果尚未注册）
     if (!WorkflowRegistry.has('content-creator')) {
@@ -164,9 +170,9 @@ export class SyncExecutor {
         stepsCompleted: (finalState as any).stepsCompleted || [],
       });
 
-      return {
+      const result = {
         taskId,
-        status: 'completed',
+        status: 'completed' as const,
         finalState,
         duration,
         metadata: {
@@ -175,6 +181,11 @@ export class SyncExecutor {
           cost: (finalState as any).totalCost || 0,
         },
       };
+
+      // 发送 Webhook 通知
+      await this.sendWebhookNotification(result, params);
+
+      return result;
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -203,9 +214,9 @@ export class SyncExecutor {
         });
       }
 
-      return {
+      const failedResult = {
         taskId,
-        status: 'failed',
+        status: 'failed' as const,
         finalState: {} as WorkflowState,
         duration,
         error: errorMessage,
@@ -215,6 +226,11 @@ export class SyncExecutor {
           cost: 0,
         },
       };
+
+      // 发送 Webhook 通知
+      await this.sendWebhookNotification(failedResult, params);
+
+      return failedResult;
     }
   }
 
@@ -482,6 +498,111 @@ export class SyncExecutor {
       currentStep: task.currentStep || undefined,
       progress: this.calculateProgress(task.currentStep || ''),
     };
+  }
+
+  /**
+   * 发送 Webhook 通知
+   *
+   * 在任务完成或失败时发送回调通知，失败不影响任务执行结果
+   *
+   * @param result - 执行结果
+   * @param params - 任务参数
+   * @private
+   */
+  private async sendWebhookNotification(
+    result: ExecutionResult,
+    params: CreateTaskParams
+  ): Promise<void> {
+    const callbackUrl = params.callbackUrl;
+    const enabled = params.callbackEnabled ?? true; // 默认启用
+
+    // 检查是否启用回调
+    if (!enabled || !callbackUrl) {
+      logger.debug('Webhook notification skipped', {
+        taskId: result.taskId,
+        enabled,
+        hasCallbackUrl: !!callbackUrl,
+      });
+      return;
+    }
+
+    // 检查是否应该发送此事件
+    const events = params.callbackEvents ?? ['completed', 'failed'];
+    if (!events.includes(result.status)) {
+      logger.debug('Event not in callback events list', {
+        taskId: result.taskId,
+        event: result.status,
+        allowedEvents: events,
+      });
+      return;
+    }
+
+    // 构造回调负载
+    const payload: CallbackPayload = {
+      event: result.status,
+      taskId: result.taskId,
+      workflowType: params.type || 'content-creator',
+      status: result.status,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        topic: params.topic,
+        requirements: params.requirements,
+        targetAudience: params.targetAudience,
+      },
+    };
+
+    // 添加成功时的结果数据
+    if (result.status === 'completed') {
+      payload.result = {
+        content: (result.finalState as any).articleContent,
+        htmlContent: (result.finalState as any).finalArticleContent,
+        images: (result.finalState as any).images,
+        qualityScore: (result.finalState as any).textQualityReport?.score,
+        wordCount: (result.finalState as any).articleContent?.length || 0,
+        metrics: {
+          tokensUsed: result.metadata.tokensUsed,
+          cost: result.metadata.cost,
+          duration: result.duration,
+          stepsCompleted: result.metadata.stepsCompleted,
+        },
+      };
+    }
+
+    // 添加失败时的错误信息
+    if (result.status === 'failed') {
+      payload.error = {
+        message: result.error || 'Unknown error',
+        type: 'execution_error',
+        details: {
+          duration: result.duration,
+          stepsCompleted: result.metadata.stepsCompleted,
+        },
+      };
+    }
+
+    // 发送回调（确保失败不影响任务执行）
+    try {
+      await this.webhookService.sendCallback(payload, {
+        enabled: true,
+        url: callbackUrl,
+        timeout: 10,
+        retryCount: 3,
+        retryDelay: 5,
+      });
+
+      logger.info('Webhook notification queued', {
+        taskId: result.taskId,
+        event: result.status,
+        callbackUrl,
+      });
+    } catch (error) {
+      // Webhook 发送失败不应该影响任务执行结果
+      logger.error('Failed to queue webhook notification', {
+        taskId: result.taskId,
+        event: result.status,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }
 

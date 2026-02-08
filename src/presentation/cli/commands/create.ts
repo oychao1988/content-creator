@@ -30,6 +30,8 @@ export const createCommand = new Command('create')
   .option('--mode <mode>', '执行模式 (sync|async)', 'sync')
   .option('--priority <priority>', '优先级 (low|normal|high|urgent)', 'normal')
   .option('--sync', '同步执行（等待结果）', false)
+  .option('--callback-url <url>', 'Webhook 回调 URL（任务完成/失败时通知）')
+  .option('--callback-events <events>', '触发回调的事件列表（逗号分隔，如：completed,failed）')
   .allowUnknownOption()  // 允许未知选项（用于动态工作流参数）
   .allowExcessArguments(true)  // 允许额外参数
   .action(async (options, cmd: any) => {
@@ -82,17 +84,30 @@ export const createCommand = new Command('create')
           }
 
           // 只添加工作流特定的参数（避免重复添加通用参数）
-          const isCommonParam = ['type', 'mode', 'priority', 'sync'].includes(key);
+          const isCommonParam = ['type', 'mode', 'priority', 'sync', 'callback-url', 'callback-url', 'callbackEvents', 'callbackUrl'].includes(key);
           if (!isCommonParam) {
             parsedOptions[key] = value;
           }
         }
       }
 
+      // 解析 Webhook 回调参数
+      const callbackUrl = options.callbackUrl || options['callback-url'];
+      const callbackEvents = options.callbackEvents || options['callback-events']
+        ? (options.callbackEvents || options['callback-events']).split(',').map((e: string) => e.trim())
+        : undefined;
+
       const { params, errors } = workflowParameterMapper.mapCliOptionsToParams(
         options.type,
         parsedOptions
       );
+
+      // 添加 Webhook 回调参数到 params
+      if (callbackUrl) {
+        params.callbackUrl = callbackUrl;
+        params.callbackEnabled = !!callbackUrl;
+        params.callbackEvents = callbackEvents;
+      }
 
       if (errors.length > 0) {
         console.error(chalk.red('❌ 参数错误:'));
@@ -135,6 +150,17 @@ export const createCommand = new Command('create')
       console.log(chalk.white(`描述: ${metadata.description}`));
       console.log(chalk.white(`执行模式: ${params.mode}`));
       console.log(chalk.white(`优先级: ${options.priority}`));
+
+      // 显示 Webhook 回调配置
+      if (params.callbackUrl) {
+        console.log(chalk.white(`Webhook 回调: ${chalk.green('已启用')}`));
+        console.log(chalk.white(`  回调 URL: ${params.callbackUrl}`));
+        if (params.callbackEvents && params.callbackEvents.length > 0) {
+          console.log(chalk.white(`  监听事件: ${params.callbackEvents.join(', ')}`));
+        }
+      } else {
+        console.log(chalk.white(`Webhook 回调: ${chalk.gray('未配置')}`));
+      }
 
       // 显示工作流特定参数
       metadata.paramDefinitions?.forEach(param => {
