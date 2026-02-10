@@ -40,6 +40,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "api": "tsx src/presentation/api/server.ts",
+    "api:dev": "tsx watch src/presentation/api/server.ts",
     "test": "vitest run",
     "test:unit": "vitest run --exclude=\"**/integration/**/*.test.ts\" --exclude=\"**/performance/**/*.test.ts\"",
     "test:integration": "vitest run tests/integration",

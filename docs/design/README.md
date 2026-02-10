@@ -9,17 +9,25 @@
 ```
 design/
 ├── README.md                                    # 设计文档说明
+├── http-api-design.md                           # ✅ 已实施：HTTP RESTful API 设计
 ├── workflow-scaffolding-design.md               # ❌ 待实施：工作流脚手架设计
 ├── workflow-scaffolding-example.ts              # ❌ 示例代码
 ├── agent-performance-evaluation-design.md       # ❌ 待实施：性能评估设计
+├── content-creator-agent-design.md              # ✅ 已实施：AI Agent 内容创作者
 ├── claude-cli-llm-service-design.md             # ✅ 已实施：Claude CLI LLM 服务
-└── cli-unified-design.md                        # ✅ 已实施：CLI 统一多工作流
+├── cli-unified-design.md                        # ✅ 已实施：CLI 统一多工作流
+├── webhook-callback-feature.md                  # ✅ 已实施：Webhook 回调功能
+└── webhook-implementation-plan.md               # ✅ 已实施：Webhook 实施计划
 ```
 
 ## 🚧 设计文档清单
 
 | 文档 | 状态 | 实施时间 | 描述 |
 |------|------|----------|------|
+| [http-api-design.md](./http-api-design.md) | ✅ 已实施 | 2026-02-10 | HTTP RESTful API 完整设计文档 |
+| [content-creator-agent-design.md](./content-creator-agent-design.md) | ✅ 已实施 | 2026-02-08 | AI Agent 内容创作者设计 |
+| [webhook-callback-feature.md](./webhook-callback-feature.md) | ✅ 已实施 | 2026-02-08 | Webhook 回调功能设计 |
+| [webhook-implementation-plan.md](./webhook-implementation-plan.md) | ✅ 已实施 | 2026-02-08 | Webhook 实施计划 |
 | [workflow-scaffolding-design.md](./workflow-scaffolding-design.md) | ❌ 待实施 | - | 工作流脚手架工具完整设计（14-20天工作量） |
 | [workflow-scaffolding-example.ts](./workflow-scaffolding-example.ts) | ❌ 示例代码 | - | 脚手架生成的代码示例 |
 | [agent-performance-evaluation-design.md](./agent-performance-evaluation-design.md) | ❌ 待实施 | - | Agent 性能评估系统设计 |
@@ -29,6 +37,46 @@ design/
 > 💡 **提示**: ✅ = 已实施 | ❌ = 待实施
 
 ## ✅ 已实施功能详情
+
+### HTTP RESTful API 设计 (2026-02-10)
+
+**实施文件**:
+- `src/presentation/api/app.ts`
+- `src/presentation/api/server.ts`
+- `src/controllers/`
+- `src/routes/`
+- `src/middleware/`
+- `src/validators/`
+- `src/dto/`
+
+**功能特性**:
+- 完整的 RESTful API 接口
+- 任务管理（创建、查询、重试、取消）
+- 工作流管理
+- 健康检查和监控端点
+- Zod 参数验证
+- 统一错误处理
+- Sentry 错误追踪
+- Webhook 回调支持
+
+**启动方式**:
+```bash
+# 启动 API 服务器
+pnpm run api
+
+# 或使用 CLI
+pnpm run cli api
+
+# 开发模式（热重载）
+pnpm run api:dev
+```
+
+**可用端点**:
+- `GET /health` - 健康检查
+- `GET /api/tasks` - 列出任务
+- `POST /api/tasks` - 创建任务
+- `GET /api/workflows` - 列出工作流
+- 详见 [HTTP API 设计文档](./http-api-design.md)
 
 ### CLI 统一多工作流设计 (2026-02-01)
 

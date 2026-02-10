@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 智能内容生成（基于 DeepSeek API）
 - 多工作流架构（内容创作、翻译等）
 - 同步/异步执行模式
+- HTTP RESTful API 接口
+- CLI 命令行工具
 - 双层质量检查（硬规则 + LLM）
 - BullMQ 队列任务处理
 - PostgreSQL/SQLite/内存数据库支持
@@ -124,6 +126,37 @@ pnpm run monitor
 pnpm run scheduler
 ```
 
+### HTTP API 服务器
+```bash
+# 启动 API 服务器
+pnpm run api
+
+# API 开发模式（热重载）
+pnpm run api:dev
+
+# 通过 CLI 启动
+pnpm run cli api
+
+# 指定端口启动
+API_PORT=8080 pnpm run api
+```
+
+**API 端点**（默认 `http://localhost:3001`）：
+- `GET /health` - 健康检查
+- `GET /api` - API 信息
+- `GET /api/tasks` - 列出任务（支持分页、过滤、排序）
+- `POST /api/tasks` - 创建任务（同步/异步）
+- `GET /api/tasks/:id` - 获取任务详情
+- `GET /api/tasks/:id/status` - 获取任务状态
+- `GET /api/tasks/:id/result` - 获取任务结果
+- `POST /api/tasks/:id/retry` - 重试任务
+- `DELETE /api/tasks/:id` - 取消任务
+- `GET /api/workflows` - 列出所有工作流
+- `GET /api/workflows/:type` - 获取工作流详情
+- `GET /api/stats` - 获取统计信息
+
+详细 API 文档：`docs/design/http-api-design.md`
+
 ### LLM 测试
 ```bash
 # 快速测试
@@ -169,8 +202,27 @@ src/
 │   ├── llm/           # LLM 服务（API + CLI 两种实现）
 │   ├── quality/       # 质量检查服务
 │   └── image/         # 图片生成服务
+├── controllers/        # API 控制器层
+│   ├── TaskController.ts      # 任务管理控制器
+│   ├── WorkflowController.ts  # 工作流管理控制器
+│   └── HealthController.ts    # 健康检查控制器
+├── routes/             # API 路由定义
+│   ├── tasks.ts        # 任务路由
+│   ├── workflows.ts    # 工作流路由
+│   ├── health.ts       # 健康检查路由
+│   └── index.ts        # 路由聚合
+├── middleware/         # Express 中间件
+│   ├── errorHandler.ts     # 错误处理中间件
+│   └── requestLogger.ts    # 请求日志中间件
+├── validators/         # Zod 验证 Schema
+│   └── taskValidators.ts
+├── dto/                # 数据传输对象
+│   └── taskDtos.ts
 └── presentation/       # 表现层（CLI/API）
     ├── cli/           # CLI 命令
+    ├── api/           # API 服务器
+    │   ├── app.ts      # Express 应用设置
+    │   └── server.ts   # HTTP 服务器
     ├── worker-cli.ts  # Worker CLI
     └── monitor-cli.ts # 监控 CLI
 ```
@@ -309,7 +361,15 @@ config.postgres.host
 // Redis 配置
 config.redis.enabled
 config.redis.url
+
+// API 服务器配置
+config.api.port       // 默认 3001
+config.api.host       // 默认 '0.0.0.0'
 ```
+
+**环境变量**：
+- `API_PORT` - API 服务器端口（默认：3001）
+- `API_HOST` - 监听地址（默认：0.0.0.0）
 
 ## 错误处理
 
@@ -338,6 +398,26 @@ logger.info('Message', { metadata });
 
 ## 常见问题
 
+### API 服务器相关
+
+#### API 服务器无法启动
+```bash
+# 检查端口是否被占用
+lsof -i :3001
+
+# 使用其他端口启动
+API_PORT=8080 pnpm run api
+```
+
+#### API 请求返回 404
+- 检查请求路径是否正确（注意 `/api` 前缀）
+- 查看可用端点：`curl http://localhost:3001/api`
+
+#### API 请求超时
+- 同步任务可能需要较长时间处理
+- 检查 LLM 服务连接
+- 考虑使用异步模式：`"mode": "async"`
+
 ### 数据库迁移失败
 ```bash
 # 检查迁移状态
@@ -357,3 +437,29 @@ pnpm run db:migrate
 - 检查网络连接
 - 调整 `LLM_TIMEOUT_MS` 和 `LLM_STREAM_TIMEOUT_MS`
 - 切换到 CLI 模式：`LLM_SERVICE_TYPE=cli`
+
+### API 使用示例
+
+#### 创建任务（cURL）
+```bash
+curl -X POST http://localhost:3001/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mode": "sync",
+    "topic": "人工智能的发展趋势",
+    "requirements": "写一篇关于 AI 的文章",
+    "targetAudience": "技术从业者"
+  }'
+```
+
+#### 查询任务列表
+```bash
+curl "http://localhost:3001/api/tasks?page=1&limit=10&status=completed"
+```
+
+#### 获取任务状态
+```bash
+curl http://localhost:3001/api/tasks/{taskId}/status
+```
+
+更多 API 示例请参考：`docs/design/http-api-design.md`

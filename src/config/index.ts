@@ -98,6 +98,10 @@ const envSchema = z.object({
   // 监控配置（可选）
   SENTRY_DSN: z.string().url().optional(),
   SENTRY_ENVIRONMENT: z.string().optional(),
+
+  // API 服务器配置
+  API_PORT: z.coerce.number().int().positive().default(3001).optional(),
+  API_HOST: z.string().default('0.0.0.0').optional(),
 });
 
 /**
@@ -391,6 +395,15 @@ class Config {
         dsn: this.env.SENTRY_DSN,
         environment: this.env.SENTRY_ENVIRONMENT || this.env.NODE_ENV,
       } : null,
+    };
+  }
+
+  // ========== API 服务器配置 ==========
+
+  get api() {
+    return {
+      port: this.env.API_PORT || 3001,
+      host: this.env.API_HOST || '0.0.0.0',
     };
   }
 }

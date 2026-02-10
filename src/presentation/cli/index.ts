@@ -14,6 +14,7 @@ import { cancelCommand } from './commands/cancel.js';
 import { listCommand } from './commands/list.js';
 import { retryCommand } from './commands/retry.js';
 import { workflowCommand } from './commands/workflow.js';
+import { apiCommand } from './commands/api.js';
 import { createLogger } from '../../infrastructure/logging/logger.js';
 import { ensureWorkflowsInitialized } from '../../domain/workflow/initialize.js';
 
@@ -39,6 +40,7 @@ program.addCommand(statusCommand);
 program.addCommand(resultCommand);
 program.addCommand(cancelCommand);
 program.addCommand(workflowCommand);
+program.addCommand(apiCommand);
 
 // ========== 工作流脚手架命令 ==========
 // 导入脚手架命令

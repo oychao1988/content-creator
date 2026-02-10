@@ -31,6 +31,7 @@
 
 ### 技术参考
 - [⚡ CLI 命令参考](./references/cli-reference.md) - CLI 命令完整参考
+- [🌐 HTTP API 文档](./design/http-api-design.md) - RESTful API 完整文档 **NEW**
 - [📦 BullMQ 快速参考](./references/bullmq-quick-reference.md) - 任务队列管理
 - [🔍 LLM 测试指南](./references/llm-testing-guide.md) - LLM 服务测试
 - [💾 存储机制说明](./references/storage-guide.md) - PostgreSQL 数据存储
@@ -49,6 +50,7 @@
 
 | 文档 | 状态 | 实施时间 | 描述 |
 |------|------|----------|------|
+| [http-api-design.md](./design/http-api-design.md) | ✅ 已实施 | 2026-02-10 | **HTTP RESTful API 设计** |
 | [webhook-callback-feature.md](./design/webhook-callback-feature.md) | ✅ 已实施 | 2026-02-08 | **Webhook 回调功能**（全部 5 阶段完成） |
 | [workflow-scaffolding-design.md](./design/workflow-scaffolding-design.md) | ✅ 已实施 | 2026-02-04 | AI-Native 工作流脚手架（全部 6 阶段完成） |
 | [workflow-scaffolding-example.ts](./design/workflow-scaffolding-example.ts) | ❌ 示例代码 | - | 脚手架代码示例 |
