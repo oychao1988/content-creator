@@ -253,18 +253,18 @@ docker-compose ps
 docker-compose logs -f api
 
 # 5. 验证部署
-curl http://localhost:3001/health
+curl http://localhost:18100/health
 ```
 
 ### 服务架构
 
 | 服务 | 端口 | 描述 |
 |------|------|------|
-| API | 3001 | HTTP RESTful API |
+| API | 18100 | HTTP RESTful API |
 | Worker | - | 后台任务处理器 |
 | PostgreSQL | 5432 | 数据库 |
 | Redis | 6379 | 缓存和队列 |
-| Monitor | 3002 | 监控面板（可选） |
+| Monitor | 18101 | 监控面板（可选） |
 
 ### 开发环境
 

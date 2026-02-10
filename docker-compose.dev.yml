@@ -88,14 +88,14 @@ services:
       LLM_SERVICE_TYPE: ${LLM_SERVICE_TYPE:-api}
 
       # API 服务器配置
-      API_PORT: 3001
+      API_PORT: 18100
 
       # 日志配置
       LOG_LEVEL: debug
       LOG_FILE: ./logs/app.log
 
     ports:
-      - "3001:3001"
+      - "18100:18100"
     volumes:
       - .:/app
       - /app/node_modules

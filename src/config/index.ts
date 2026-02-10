@@ -100,7 +100,7 @@ const envSchema = z.object({
   SENTRY_ENVIRONMENT: z.string().optional(),
 
   // API 服务器配置
-  API_PORT: z.coerce.number().int().positive().default(3001).optional(),
+  API_PORT: z.coerce.number().int().positive().default(18100).optional(),
   API_HOST: z.string().default('0.0.0.0').optional(),
 });
 
@@ -402,7 +402,7 @@ class Config {
 
   get api() {
     return {
-      port: this.env.API_PORT || 3001,
+      port: this.env.API_PORT || 18100,
       host: this.env.API_HOST || '0.0.0.0',
     };
   }

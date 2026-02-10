@@ -5,7 +5,7 @@
 本文档描述了 `llm-content-creator` 项目的 RESTful HTTP API 设计。API 提供了对 AI 驱动的内容创作系统的完整访问，包括任务管理、工作流管理和系统监控功能。
 
 **版本**: v0.2.0
-**基础路径**: `http://localhost:3001`
+**基础路径**: `http://localhost:18100`
 **内容类型**: `application/json`
 
 ---
@@ -198,7 +198,7 @@ src/
     "htmlContent": "<p>生成的 HTML 文章...</p>",
     "images": [
       {
-        "url": "http://localhost:3001/images/abc123.jpg",
+        "url": "http://localhost:18100/images/abc123.jpg",
         "prompt": "AI technology illustration",
         "width": 1920,
         "height": 1080
@@ -404,7 +404,7 @@ GET /api/tasks?page=1&limit=20&status=completed&sortBy=createdAt&sortOrder=desc
     "htmlContent": "<p>HTML 格式文章内容...</p>",
     "images": [
       {
-        "url": "http://localhost:3001/images/abc123.jpg",
+        "url": "http://localhost:18100/images/abc123.jpg",
         "prompt": "AI technology illustration",
         "width": 1920,
         "height": 1080
@@ -788,9 +788,9 @@ API_PORT=8080 pnpm run api
 
 ### 默认端点
 
-- **API 服务器**: `http://localhost:3001`
-- **健康检查**: `http://localhost:3001/health`
-- **API 根路径**: `http://localhost:3001/api`
+- **API 服务器**: `http://localhost:18100`
+- **健康检查**: `http://localhost:18100/health`
+- **API 根路径**: `http://localhost:18100/api`
 
 ---
 
@@ -800,7 +800,7 @@ API_PORT=8080 pnpm run api
 
 #### 创建同步任务
 ```bash
-curl -X POST http://localhost:3001/api/tasks \
+curl -X POST http://localhost:18100/api/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "mode": "sync",
@@ -812,24 +812,24 @@ curl -X POST http://localhost:3001/api/tasks \
 
 #### 查询任务列表
 ```bash
-curl "http://localhost:3001/api/tasks?page=1&limit=10&status=completed"
+curl "http://localhost:18100/api/tasks?page=1&limit=10&status=completed"
 ```
 
 #### 获取任务状态
 ```bash
-curl http://localhost:3001/api/tasks/550e8400-e29b-41d4-a716-446655440000/status
+curl http://localhost:18100/api/tasks/550e8400-e29b-41d4-a716-446655440000/status
 ```
 
 #### 列出工作流
 ```bash
-curl http://localhost:3001/api/workflows
+curl http://localhost:18100/api/workflows
 ```
 
 ### JavaScript 示例
 
 ```javascript
 // 创建任务
-const response = await fetch('http://localhost:3001/api/tasks', {
+const response = await fetch('http://localhost:18100/api/tasks', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',

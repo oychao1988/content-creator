@@ -88,7 +88,7 @@ services:
       LLM_SERVICE_TYPE: api
 
       # API 服务器配置
-      API_PORT: 3001
+      API_PORT: 18100
       API_HOST: 0.0.0.0
 
       # Worker 配置
@@ -108,12 +108,12 @@ services:
       ARK_API_KEY: ${ARK_API_KEY}
 
     ports:
-      - "${API_PORT:-3001}:3001"
+      - "${API_PORT:-18100}:18100"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:18100/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -214,13 +214,13 @@ services:
       REDIS_DB: 0
 
       # 监控配置
-      MONITOR_PORT: 3002
+      MONITOR_PORT: 18101
 
       # 日志配置
       LOG_LEVEL: ${LOG_LEVEL:-info}
 
     ports:
-      - "${MONITOR_PORT:-3002}:3002"
+      - "${MONITOR_PORT:-18101}:18101"
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs

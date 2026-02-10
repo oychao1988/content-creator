@@ -101,13 +101,13 @@ docker-compose logs -f
 
 ```bash
 # 健康检查
-curl http://localhost:3001/health
+curl http://localhost:18100/health
 
 # 查看 API 信息
-curl http://localhost:3001/api
+curl http://localhost:18100/api
 
 # 列出工作流
-curl http://localhost:3001/api/workflows
+curl http://localhost:18100/api/workflows
 ```
 
 ---
@@ -210,10 +210,10 @@ docker-compose exec postgres psql -U postgres -d content_creator -f migrations/0
 docker-compose ps
 
 # 测试 API 端点
-curl http://localhost:3001/health
+curl http://localhost:18100/health
 
 # 测试任务创建
-curl -X POST http://localhost:3001/api/tasks \
+curl -X POST http://localhost:18100/api/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "mode": "sync",
@@ -227,7 +227,7 @@ curl -X POST http://localhost:3001/api/tasks \
 
 ```bash
 # 访问监控面板
-open http://localhost:3002
+open http://localhost:18101
 
 # 或启动监控服务
 docker-compose up -d monitor
@@ -326,7 +326,7 @@ services:
 docker-compose ps
 
 # 手动触发健康检查
-docker-compose exec api curl http://localhost:3001/health
+docker-compose exec api curl http://localhost:18100/health
 ```
 
 ---
@@ -426,7 +426,7 @@ docker-compose exec redis redis-cli -a redis123 FLUSHDB
 
 ```bash
 # 检查端口占用
-lsof -i :3001
+lsof -i :18100
 lsof -i :5432
 
 # 修改 .env 文件中的端口
@@ -515,7 +515,7 @@ ls -la /app
 ps aux
 
 # 测试网络
-curl http://localhost:3001/health
+curl http://localhost:18100/health
 ping postgres
 ping redis
 ```
@@ -590,7 +590,7 @@ docker-compose build --no-cache
 docker-compose up -d
 
 # 5. 验证
-curl http://localhost:3001/health
+curl http://localhost:18100/health
 ```
 
 ### 零停机部署
@@ -664,7 +664,7 @@ docker-compose exec redis redis-cli -a redis123 INFO stats
 │                             │
 │  ┌──────┐  ┌──────┐        │
 │  │ API  │  │Worker│        │
-│  │:3001 │  │      │        │
+│  │:18100 │  │      │        │
 │  └──┬───┘  └──┬───┘        │
 │     │         │            │
 │  ┌──▼─────────▼──┐         │

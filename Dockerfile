@@ -59,7 +59,7 @@ RUN adduser --system --uid 1001 nextjs
 
 # 设置环境变量
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=18100
 
 # 复制必要文件
 COPY --from=builder /app/dist ./dist
@@ -75,11 +75,11 @@ RUN mkdir -p /app/data /app/logs && \
 USER nextjs
 
 # 暴露端口
-EXPOSE 3001
+EXPOSE 18100
 
 # 健康检查
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD node -e "require('http').get('http://localhost:18100/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # 启动命令
 CMD ["node", "dist/presentation/api/server.js"]

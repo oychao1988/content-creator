@@ -141,7 +141,7 @@ pnpm run cli api
 API_PORT=8080 pnpm run api
 ```
 
-**API 端点**（默认 `http://localhost:3001`）：
+**API 端点**（默认 `http://localhost:18100`）：
 - `GET /health` - 健康检查
 - `GET /api` - API 信息
 - `GET /api/tasks` - 列出任务（支持分页、过滤、排序）
@@ -403,7 +403,7 @@ logger.info('Message', { metadata });
 #### API 服务器无法启动
 ```bash
 # 检查端口是否被占用
-lsof -i :3001
+lsof -i :18100
 
 # 使用其他端口启动
 API_PORT=8080 pnpm run api
@@ -411,7 +411,7 @@ API_PORT=8080 pnpm run api
 
 #### API 请求返回 404
 - 检查请求路径是否正确（注意 `/api` 前缀）
-- 查看可用端点：`curl http://localhost:3001/api`
+- 查看可用端点：`curl http://localhost:18100/api`
 
 #### API 请求超时
 - 同步任务可能需要较长时间处理
@@ -442,7 +442,7 @@ pnpm run db:migrate
 
 #### 创建任务（cURL）
 ```bash
-curl -X POST http://localhost:3001/api/tasks \
+curl -X POST http://localhost:18100/api/tasks \
   -H "Content-Type: application/json" \
   -d '{
     "mode": "sync",
@@ -454,12 +454,12 @@ curl -X POST http://localhost:3001/api/tasks \
 
 #### 查询任务列表
 ```bash
-curl "http://localhost:3001/api/tasks?page=1&limit=10&status=completed"
+curl "http://localhost:18100/api/tasks?page=1&limit=10&status=completed"
 ```
 
 #### 获取任务状态
 ```bash
-curl http://localhost:3001/api/tasks/{taskId}/status
+curl http://localhost:18100/api/tasks/{taskId}/status
 ```
 
 更多 API 示例请参考：`docs/design/http-api-design.md`
