@@ -1,0 +1,121 @@
+# ============================================
+# Docker Compose 开发环境配置
+# 用于本地开发，支持热重载
+# ============================================
+
+version: '3.8'
+
+services:
+  # ============================================
+  # PostgreSQL 数据库
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: content-creator-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: content_creator_dev
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - content-creator-dev-network
+
+  # ============================================
+  # Redis 缓存和队列
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: content-creator-redis-dev
+    restart: unless-stopped
+    command: redis-server --requirepass redis123
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - content-creator-dev-network
+
+  # ============================================
+  # 开发环境应用（使用 Node.js 直接运行，支持热重载）
+  # ============================================
+  app:
+    image: node:18-alpine
+    container_name: content-creator-app-dev
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "npm install -g pnpm@8 && pnpm install && pnpm run dev"
+    environment:
+      # Node 环境
+      NODE_ENV: development
+
+      # 数据库配置
+      DATABASE_TYPE: postgres
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: content_creator_dev
+
+      # Redis 配置
+      REDIS_URL: redis://:redis123@redis:6379
+      REDIS_PASSWORD: redis123
+      REDIS_DB: 0
+
+      # LLM 配置（从本地 .env 文件传入）
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME}
+      LLM_SERVICE_TYPE: ${LLM_SERVICE_TYPE:-api}
+
+      # API 服务器配置
+      API_PORT: 3001
+
+      # 日志配置
+      LOG_LEVEL: debug
+      LOG_FILE: ./logs/app.log
+
+    ports:
+      - "3001:3001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - ./data:/app/data
+      - ./logs:/app/logs
+    networks:
+      - content-creator-dev-network
+
+# ============================================
+# 数据卷
+# ============================================
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+
+# ============================================
+# 网络
+# ============================================
+networks:
+  content-creator-dev-network:
+    driver: bridge

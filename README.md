@@ -136,6 +136,7 @@ content-creator create \
 |------|------|
 | [🚀 快速开始](./docs/quick-start.md) | 5 分钟快速上手指南 |
 | [📖 用户操作手册](./docs/user-guide.md) | 完整的用户使用指南 |
+| [🐳 Docker 部署指南](./docs/guides/docker-deployment.md) | 容器化部署完整指南 |
 | [🏗️ 系统架构设计](./docs/architecture-complete.md) | 完整的系统架构（5500+ 行） |
 | [⚙️ 工作流架构](./docs/workflow-architecture.md) | LangGraph 工作流详解 |
 | [🔌 工作流扩展架构](./docs/workflow-extension-design.md) | 多工作流插件化架构设计 |
@@ -228,6 +229,56 @@ pnpm run db:migrate
 ```bash
 pnpm run dev
 ```
+
+---
+
+## 🐳 Docker 部署
+
+项目支持使用 Docker 和 Docker Compose 进行容器化部署，适合生产环境和开发环境。
+
+### 快速启动
+
+```bash
+# 1. 配置环境变量
+cp .env.example .env
+nano .env  # 编辑必需的配置
+
+# 2. 启动所有服务（API + Worker + PostgreSQL + Redis）
+docker-compose up -d
+
+# 3. 查看服务状态
+docker-compose ps
+
+# 4. 查看日志
+docker-compose logs -f api
+
+# 5. 验证部署
+curl http://localhost:3001/health
+```
+
+### 服务架构
+
+| 服务 | 端口 | 描述 |
+|------|------|------|
+| API | 3001 | HTTP RESTful API |
+| Worker | - | 后台任务处理器 |
+| PostgreSQL | 5432 | 数据库 |
+| Redis | 6379 | 缓存和队列 |
+| Monitor | 3002 | 监控面板（可选） |
+
+### 开发环境
+
+```bash
+# 使用开发配置（支持热重载）
+docker-compose -f docker-compose.dev.yml up -d
+
+# 查看日志
+docker-compose -f docker-compose.dev.yml logs -f app
+```
+
+### 详细文档
+
+完整的部署指南请参考：[Docker 部署指南](docs/guides/docker-deployment.md)
 
 ---
 

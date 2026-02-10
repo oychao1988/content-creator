@@ -13,6 +13,7 @@
 ### 新手入门
 - [🚀 快速开始指南](./guides/quick-start.md) - 5 分钟上手使用 Content Creator
 - [📖 用户操作手册](./guides/user-guide.md) - 完整的用户使用指南
+- [🐳 Docker 部署指南](./guides/docker-deployment.md) - 容器化部署完整指南 **NEW**
 
 ### 核心架构
 - [🏗️ 工作流架构](./architecture/workflow-architecture.md) - LangGraph 工作流设计详解
