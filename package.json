@@ -78,6 +78,7 @@
     "test:llm:cli": "tsx scripts/test-cli-llm.ts",
     "test:llm:quick": "tsx scripts/quick-llm-test.ts",
     "test:llm:integration": "tsx scripts/test-llm-integration.ts",
+    "test:content-hub": "tsx scripts/test-content-hub-real.ts",
     "test:llm:integration:verbose": "tsx scripts/test-llm-integration.ts --verbose"
   },
   "keywords": [

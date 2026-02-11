@@ -88,6 +88,10 @@ const COST_CONFIG: Record<string, Record<string, { costPer1kTokensIn: number; co
       costPer1kTokensIn: 0.001,
       costPer1kTokensOut: 0.002,
     },
+    'deepseek-v3.2': {
+      costPer1kTokensIn: 0.001,
+      costPer1kTokensOut: 0.002,
+    },
   },
 };
 
