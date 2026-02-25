@@ -24,6 +24,12 @@ export {
   type ClaudeCLIConfig,
 } from './ClaudeCLIService.js';
 
+// ========== Provider 服务实现 ==========
+export {
+  ClaudeCLIProviderService,
+  type ClaudeCLIProviderConfig,
+} from './ClaudeCLIProviderService.js';
+
 // ========== 服务工厂 ==========
 export { LLMServiceFactory } from './LLMServiceFactory.js';
 
