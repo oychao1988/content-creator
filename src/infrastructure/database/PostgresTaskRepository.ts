@@ -20,8 +20,8 @@ export class PostgresTaskRepository extends BaseRepository implements ITaskRepos
    * 创建任务
    */
   async create(input: CreateTaskInput): Promise<Task> {
-    // 使用幂等键作为 taskId，或者生成新的 UUID
-    const taskId = input.idempotencyKey || uuidv4();
+    // 🔧 修复：优先使用传入的 id，其次使用 idempotencyKey，最后生成新的 UUID
+    const taskId = input.id || input.idempotencyKey || uuidv4();
 
     const query = `
       INSERT INTO tasks (
